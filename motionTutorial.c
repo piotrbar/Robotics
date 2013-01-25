@@ -5,8 +5,8 @@ void stop();
 void rotate( int deg );
 void move( int ncm );
 
-int x = 10;
-int y = 10;
+int x = 0;
+int y = 0;
 int rotation = 0;
 
 float rotationsForCm = 36.35; //number of rotations required for a cm
@@ -45,12 +45,12 @@ int deg2rotations( int deg ){
   return deg * rotationsFordeg;
 }
 
-void updatePosition(){
+void updatePosition( int rotations ){
   // Uncomment to track only a single dot
   //nxtClearPixel( 10 + x/200, 10 + y/200 );
-  x += cosDegrees( rotation );
-  y += sinDegrees( rotation );
-  nxtSetPixel( x/500, y/500 );
+  x += cosDegrees( rotation ) * rotations;
+  y += sinDegrees( rotation ) * rotations;
+  nxtSetPixel( 10 + x/720, 10 + y/720  );
 }
 
 void stop(){
@@ -85,18 +85,20 @@ void move( int ncm ){
   nMotorEncoder[motorA] = 0;
   nMotorEncoder[motorC] = 0;
   
-  nMotorEncoderTarget[motorA] = rotations;
-  nMotorEncoderTarget[motorC] = rotations;
-
   int sign = (ncm < 0) ? -1 : 1;
   
+  nSyncedMotors = synchAC;
+  nMotorEncoderTarget[motorA] = rotations;
   motor[motorA] = sign * power;
-  motor[motorC] = sign * power;
-  while(nMotorRunState[motorA] != runStateHoldPosition && nMotorRunState[motorA] != runStateIdle){
-    if(nMotorEncoder[motorA] > 0 && motor[motorA] > 0){
-      updatePosition();
-    }
+  
+  int prevRotations = 0;
+  
+  while(nMotorRunState[motorA] == runStateRunning){
+    updatePosition( nMotorEncoder[motorA] - prevRotations );
+    prevRotations = nMotorEncoder[motorA];
   }
 
   stop();
+  
+  nSyncedMotors = synchNone;
 }
