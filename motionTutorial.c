@@ -1,77 +1,95 @@
 void exercise1();
 void exercise2();
-void Forward( int ncm );
-void Backward( int ncm );
-void Forward40cm();
-void Backward40cm();
-void Left90deg();
-void Right90deg();
 void stop();
+
+void rotate( int deg );
+void move( int ncm );
+
+int x = 0;
+int y = 0;
+int rotation = 0;
+
+int rotationsForCm = 35.45; //number of rotations required for a cm
+float rotations4deg = 5.63; //number of rotations required to turn for a degree
+
+int power = 40;
 
 task main(){
   nMotorPIDSpeedCtrl[motorA] = mtrSpeedReg;
-  nMotorPIDSpeedCtrl[motorB] = mtrSpeedReg;
-  exercise1();
+  nMotorPIDSpeedCtrl[motorC] = mtrSpeedReg;
+  
+  //exercise1();
   exercise2();
 }
 
 void exercise1(){
-  Forward40cm();
-  stop();
-  Backward40cm();
-  stop();
-  Right90deg();
-  stop();
-  Left90deg();
-  stop();
+  move( 40 );
+  move( -40 );
+  rotate( 90 );
+  rotate( -90 );
 }
 
 void exercise2(){
   int i;
   for(i = 0; i < 4; i++){
-    Forward(10);
-    stop();
-    Right90deg();
-    stop();
+    move( 40 );
+    rotate( 90 );
   }
 }
 
-void Move( int ncm, int powerA, int powerB ){
-  motor[motorA] = powerA;
-  motor[motorB] = powerB;
-  wait1Msec( ncm * (529 / (abs(powerA)/20)) );
+int cm2rotations( int ncm ){
+  return ncm * rotationsForCm;
 }
 
-void Forward( int ncm ){
-  Move( ncm, 40, 40 );
+int deg2rotations( int deg ){
+  return deg * rotations4deg;
 }
 
-void Backward( int ncm ){
-  Move( ncm, -20, -20 );
-}
-
-void Forward40cm(){
-  Forward(40);
-}
-
-void Backward40cm(){
-  Backward(40);
-}
-
-void Left90deg(){
-  motor[motorA] = -40;
-  motor[motorB] = 40;
-  wait1Msec(3600);
-}
-
-void Right90deg(){
-  motor[motorA] = 40;
-  motor[motorB] = -40;
-  wait1Msec(3600);
+void updatePosition(){
+  nxtSetPixel( 10 + x, 10 + y );
 }
 
 void stop(){
   motor[motorA] = 0;
-  motor[motorB] = 0;
-  wait1Msec(1000);
+  motor[motorC] = 0;
+  wait1Msec(100);
+}
+
+void rotate( int deg ){
+  int rotations = deg2rotations( abs(deg) );
+  nMotorEncoder[motorA] = 0;
+  
+  int sign = (deg < 0) ? -1 : 1;
+  
+  while( abs(nMotorEncoder[motorA]) < rotations ){
+    motor[motorA] = sign * -power;
+    motor[motorC] = sign * power;
+  }
+  
+  rotation += deg;
+  
+  nMotorEncoder[motorA] = 0;
+  stop();
+}
+
+void move( int ncm ){
+  int rotations = cm2rotations( abs(ncm) );
+  nMotorEncoder[motorA] = 0;
+  
+  int sign = (ncm < 0) ? -1 : 1;
+  
+  motor[motorA] = sign * power;
+  motor[motorC] = sign * power;
+  
+  while( true ){
+    if(abs(nMotorEncoder[motorA]) > rotations) 
+      break;
+  }
+  
+  x += ncm * cosDegrees( rotation );
+  y += ncm * sinDegrees( rotation );
+  updatePosition();
+
+  nMotorEncoder[motorA] = 0;
+  stop();
 }
