@@ -48,8 +48,8 @@ int deg2rotations( int deg ){
 void updatePosition( int rotations ){
   // Uncomment to track only a single dot
   //nxtClearPixel( 10 + x/200, 10 + y/200 );
-  x += cosDegrees( rotation ) * rotations;
-  y += sinDegrees( rotation ) * rotations;
+  x += cosDegrees( rotation ) * abs(rotations);
+  y += sinDegrees( rotation ) * abs(rotations);
   nxtSetPixel( 10 + x/720, 10 + y/720  );
 }
 
@@ -94,8 +94,9 @@ void move( int ncm ){
   int prevRotations = 0;
   
   while(nMotorRunState[motorA] == runStateRunning){
-    updatePosition( nMotorEncoder[motorA] - prevRotations );
-    prevRotations = nMotorEncoder[motorA];
+    curRotations = abs(nMotorEncoder[motorA]);
+    updatePosition( curRotations - prevRotations );
+    prevRotations = curRotations;
   }
 
   stop();
