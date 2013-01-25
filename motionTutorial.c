@@ -5,18 +5,19 @@ void stop();
 void rotate( int deg );
 void move( int ncm );
 
-int x = 0;
-int y = 0;
+int x = 10;
+int y = 10;
 int rotation = 0;
 
-int rotationsForCm = 35.45; //number of rotations required for a cm
-float rotationsFordeg = 5.63; //number of rotations required to turn for a degree
+float rotationsForCm = 36.35; //number of rotations required for a cm
+float rotationsFordeg = 6.63; //number of rotations required to turn for a degree
 
 int power = 40;
 
 task main(){
   nMotorPIDSpeedCtrl[motorA] = mtrSpeedReg;
   nMotorPIDSpeedCtrl[motorC] = mtrSpeedReg;
+  //move( 40 );
   //exercise1();
   exercise2();
 }
@@ -31,7 +32,7 @@ void exercise1(){
 void exercise2(){
   int i;
   for(i = 0; i < 4; i++){
-    move( 10 );
+    move( 40 );
     rotate( 90 );
   }
 }
@@ -49,7 +50,7 @@ void updatePosition(){
   //nxtClearPixel( 10 + x/200, 10 + y/200 );
   x += cosDegrees( rotation );
   y += sinDegrees( rotation );
-  nxtSetPixel( x/200, y/200 );
+  nxtSetPixel( x/500, y/500 );
 }
 
 void stop(){
