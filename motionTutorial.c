@@ -5,8 +5,8 @@ void stop();
 void rotate( int deg );
 void move( int ncm );
 
-int x = 10;
-int y = 10;
+int x = 0;
+int y = 0;
 int rotation = 0;
 
 int rotationsForCm = 35.45; //number of rotations required for a cm
@@ -31,7 +31,7 @@ void exercise1(){
 void exercise2(){
   int i;
   for(i = 0; i < 4; i++){
-    move( 40 );
+    move( 10 );
     rotate( 90 );
   }
 }
@@ -45,59 +45,57 @@ int deg2rotations( int deg ){
 }
 
 void updatePosition(){
-  //nxtClearPixel( x/10, y/10 );
+  // Uncomment to track only a single dot
+  //nxtClearPixel( 10 + x/200, 10 + y/200 );
   x += cosDegrees( rotation );
   y += sinDegrees( rotation );
-  nxtSetPixel( x/10, y/10 );
+  nxtSetPixel( x/200, y/200 );
 }
 
 void stop(){
   motor[motorA] = 0;
   motor[motorC] = 0;
-  wait1Msec(100);
+  nMotorEncoder[motorA] = 0;
+  nMotorEncoder[motorC] = 0;
+  wait1Msec(1000);
 }
 
 void rotate( int deg ){
   int rotations = deg2rotations( abs(deg) );
   nMotorEncoder[motorA] = 0;
+  nMotorEncoder[motorC] = 0;
   
+  nMotorEncoderTarget[motorA] = rotations;
+  nMotorEncoderTarget[motorC] = rotations;
+
   int sign = (deg < 0) ? -1 : 1;
-  
+
   motor[motorA] = sign * -power;
   motor[motorC] = sign * power;
-  
-  while( true ){
-    if(abs(nMotorEncoder[motorA]) > rotations){
-      break;
-    }
+  while(nMotorRunState[motorA] != runStateHoldPosition && nMotorRunState[motorA] != runStateIdle){
   }
-  
+
   rotation += deg;
-  
-  nMotorEncoder[motorA] = 0;
   stop();
 }
 
 void move( int ncm ){
   int rotations = cm2rotations( abs(ncm) );
   nMotorEncoder[motorA] = 0;
+  nMotorEncoder[motorC] = 0;
   
+  nMotorEncoderTarget[motorA] = rotations;
+  nMotorEncoderTarget[motorC] = rotations;
+
   int sign = (ncm < 0) ? -1 : 1;
   
   motor[motorA] = sign * power;
   motor[motorC] = sign * power;
-  
-  while( true ){
-    if(rotations % abs(nMotorEncoder[motorA]) == 0){
+  while(nMotorRunState[motorA] != runStateHoldPosition && nMotorRunState[motorA] != runStateIdle){
+    if(nMotorEncoder[motorA] > 0 && motor[motorA] > 0){
       updatePosition();
     }
-    if(abs(nMotorEncoder[motorA]) > rotations){
-      break;
-    }
   }
-  
-  updatePosition();
 
-  nMotorEncoder[motorA] = 0;
   stop();
 }
