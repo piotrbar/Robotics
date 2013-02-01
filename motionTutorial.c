@@ -6,6 +6,7 @@ void exercise();
 void pidSetup();
 void senseTouch();
 void senseSound();
+void wallFollow();
 void stop();
 
 void rotate( int deg );
@@ -19,25 +20,46 @@ float rotationsForCm = 28.14; //number of rotations required for a cm
 float rotationsFordeg = 3.48; //number of rotations required to turn for a degree
 
 int power = 10;
+int distance = 30;
 
 const tSensors touchSensor = (tSensors) S1;
 const tSensors sonarSensor = (tSensors) S2;
 
 task main(){
   pidSetup();
+  wallFollow();
   //senseSound();
-  senseTouch();
+  //senseTouch();
   //exercise();
+}
+
+void wallFollow() {
+  int currentDistance;
+  while(true) {
+    currentDistance = SensorValue(sonarSensor) - distance;
+    if(currentDistance < 0) {
+      motor[motorA] = abs(power/currentDistance);
+      motor[motorC] = power;
+    }
+    if(currentDistance > 0) {  
+      motor[motorA] = power;
+      motor[motorC] = abs(power/currentDistance);
+    }
+    else {
+      motor[motorA] = power;
+      motor[motorC] = power;
+    }
+  }
 }
 
 void senseSound() {
   while(1) {
-    while(SensorValue(sonarSensor) > 10){
-			motor[motorA] = 20;
-			motor[motorC] = 20;
+	  while(SensorValue(sonarSensor) > 10){
+			motor[motorA] = power;
+			motor[motorC] = power;
 		}
-		motor[motorA] = -20;
-		motor[motorC] = -20;
+		motor[motorA] = -power;
+		motor[motorC] = -power;
 		wait1Msec(1000);
   }
 }
@@ -50,7 +72,7 @@ void senseTouch() {
   	}
   	motor[motorA] = -20;
     motor[motorC] = -20;
-    wait1Msec(1000); 
+    wait1Msec(1000);
   }
 }
 
