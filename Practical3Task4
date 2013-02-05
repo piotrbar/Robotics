@@ -1,0 +1,17 @@
+Teleo-Reactive Procedure:
+
+Task3{
+
+  if ( leftlight and rightlight below treshold AND lightflag)  =>  rotate
+  
+  else if ( lights above treshold AND rightlight > leftlight AND lightflag ) => turn right
+
+  else if ( lights above treshold AND leftlight > tlight AND lightflag )  =>  turn left
+
+  else if ( leftObstacleHit )  ==>  disable lightflag, avoid from left , enable lightflag
+
+  else if ( rightObstacleHit )  ==>  disable lightflag, avoid from right, enable lightflag
+
+  else  ==>  move forward
+
+}
