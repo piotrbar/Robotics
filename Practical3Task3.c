@@ -28,141 +28,141 @@ bool handleObstacleRight = false;
 bool passingByObstacle = false;
 
 task checkLightSource(){
-    while(true){
-      wait1Msec(100);
-      lightFound = ((SensorValue(rightLightSensor) > 15 || 
-                     SensorValue(rightLightSensor) > 15) && 
-                     abs(SensorValue(rightLightSensor) - 
-                         SensorValue(leftLightSensor)) < 10);
-    }
+        while(true){
+                  lightFound = ((SensorValue(rightLightSensor) > 18 || 
+                                       SensorValue(rightLightSensor) > 18) && 
+                                                            abs(SensorValue(rightLightSensor) - 
+                                                                                     SensorValue(leftLightSensor)) < 10);
+                                                                                           EndTimeSlice();
+        }
 }
 
 void findLightSource(){
-    if((SensorValue(rightLightSensor) > 15 || 
-        SensorValue(rightLightSensor) > 15) &&
-        SensorValue(rightLightSensor) > SensorValue(leftLightSensor)){
-      motor[motorA] = -power;
-      motor[motorC] = power;
-    } else if((SensorValue(rightLightSensor) > 15 || 
-        SensorValue(rightLightSensor) > 15) &&
-        SensorValue(rightLightSensor) < SensorValue(leftLightSensor)) {
-      motor[motorA] = power;
-      motor[motorC] = -power;
-    } else {
-      motor[motorA] = power;
-      motor[motorC] = -power;
-    }
+        if((SensorValue(rightLightSensor) > 18 || 
+                SensorValue(rightLightSensor) > 18) &&
+                        SensorValue(rightLightSensor) > SensorValue(leftLightSensor)){
+                                  motor[motorA] = -power;
+                                        motor[motorC] = power;
+                        } else if((SensorValue(rightLightSensor) > 18 || 
+                                SensorValue(rightLightSensor) > 18) &&
+                                        SensorValue(rightLightSensor) < SensorValue(leftLightSensor)) {
+                                                  motor[motorA] = power;
+                                                        motor[motorC] = -power;
+                                        } else {
+                                                  motor[motorA] = power;
+                                                        motor[motorC] = -power;
+                                        }
 }
 
 task checkObstacles(){
-    while(true){
-      wait1Msec(200);
-      handleObstacleLeft = SensorValue(leftTouchSensor) == 1;
-      handleObstacleRight = SensorValue(rightTouchSensor) == 1;
-    }
+        while(true){
+                  wait1Msec(200);
+                        handleObstacleLeft = SensorValue(leftTouchSensor) == 1;
+                              handleObstacleRight = SensorValue(rightTouchSensor) == 1;
+        }
 }
 
 task obstacleHandler(){  
-  StopTask(checkLightSource);
-  passingByObstacle = true;
-  
-  int direction = (handleObstacleLeft == true) ? -1 : 1;  
-  handleObstacleLeft = false;
-  handleObstacleRight = false;
-  
-  move(-10);
-  wait1Msec(100);
-  rotate(-direction*90);
-  wait1Msec(100);
-  move(10);
-  wait1Msec(100);
-  rotate(direction*70);
-  wait1Msec(100);
-  move(10);
-  wait1Msec(100);
-  
-  passingByObstacle = false;
-  StartTask(checkLightSource);
+      StopTask(checkLightSource);
+        passingByObstacle = true;
+          
+            int direction = (handleObstacleLeft == true) ? -1 : 1;  
+              handleObstacleLeft = false;
+                handleObstacleRight = false;
+                  
+                    move(-10);
+                      wait1Msec(100);
+                        rotate(-direction*90);
+                          wait1Msec(100);
+                            move(15);
+                              wait1Msec(100);
+                                rotate(direction*70);
+                                  wait1Msec(100);
+                                    move(10);
+                                      wait1Msec(100);
+                                        
+                                          passingByObstacle = false;
+                                            StartTask(checkLightSource);
 }
 
 task main() {
-    pidSetup();
-    StartTask(checkLightSource);
-    StartTask(checkObstacles);
-    wait1Msec(500);
-    while(true){
-      wait1Msec(100);
-      if(!lightFound){ 
-        findLightSource();
-      } else if(handleObstacleLeft || handleObstacleRight){
-        StopTask(obstacleHandler);
-        StartTask(obstacleHandler);
-      } else if(!passingByObstacle){
-        moveToTarget();
-      } else {
-        wait1Msec(400);
-      }
-    }
+        pidSetup();
+            StartTask(checkLightSource);
+                StartTask(checkObstacles);
+                    wait1Msec(500);
+                        while(true){
+                                  wait1Msec(100);
+                                        if(!lightFound){ 
+                                                    findLightSource();
+                                        } else if(handleObstacleLeft || handleObstacleRight){
+                                                    StopTask(obstacleHandler);
+                                                            StartTask(obstacleHandler);
+                                        } else if(!passingByObstacle){
+                                                    moveToTarget();
+                                        } else {
+                                                    wait1Msec(400);
+                                        }
+                        }
 }
 
 void moveToTarget(){
-  motor[motorA] = power;
-  motor[motorC] = power;
+      motor[motorA] = power;
+        motor[motorC] = power;
 }
 
 void pidSetup() {
-    nMotorPIDSpeedCtrl[motorA] = mtrSpeedReg;
-    nMotorPIDSpeedCtrl[motorC] = mtrSpeedReg;
+        nMotorPIDSpeedCtrl[motorA] = mtrSpeedReg;
+            nMotorPIDSpeedCtrl[motorC] = mtrSpeedReg;
 }
 
 void rotate(int deg) {
-    int rotations = deg2rotations(abs(deg));
-    nMotorEncoder[motorA] = 0;
-    nMotorEncoder[motorC] = 0;
-
-    nMotorEncoderTarget[motorA] = rotations;
-    nMotorEncoderTarget[motorC] = rotations;
-
-    int sign = (deg < 0) ? -1 : 1;
-
-    motor[motorA] = sign * -power;
-    motor[motorC] = sign * power;
-    while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
-      EndTimeSlice();
-    }
-    
-    stop();
+        int rotations = deg2rotations(abs(deg));
+            nMotorEncoder[motorA] = 0;
+                nMotorEncoder[motorC] = 0;
+                
+                    nMotorEncoderTarget[motorA] = rotations;
+                        nMotorEncoderTarget[motorC] = rotations;
+                        
+                            int sign = (deg < 0) ? -1 : 1;
+                            
+                                motor[motorA] = sign * -power;
+                                    motor[motorC] = sign * power;
+                                        while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
+                                                  EndTimeSlice();
+                                        }
+                                            
+                                                stop();
 }
 
 void move(int ncm) {
-    int rotations = cm2rotations(abs(ncm));
-    nMotorEncoder[motorA] = 0;
-    nMotorEncoder[motorC] = 0;
-
-    int sign = (ncm < 0) ? -1 : 1;
-
-    nMotorEncoderTarget[motorA] = rotations;
-    motor[motorA] = sign * power;
-    motor[motorC] = sign * power;
-
-    while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
-      EndTimeSlice();
-    }
-    stop();
+        int rotations = cm2rotations(abs(ncm));
+            nMotorEncoder[motorA] = 0;
+                nMotorEncoder[motorC] = 0;
+                
+                    int sign = (ncm < 0) ? -1 : 1;
+                    
+                        nMotorEncoderTarget[motorA] = rotations;
+                            motor[motorA] = sign * power;
+                                motor[motorC] = sign * power;
+                                
+                                    while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
+                                              EndTimeSlice();
+                                    }
+                                        stop();
 }
 
 int cm2rotations(int ncm) {
-    return ncm * rotationsForCm;
+        return ncm * rotationsForCm;
 }
 
 int deg2rotations(int deg) {
-    return deg * rotationsFordeg;
+        return deg * rotationsFordeg;
 }
 
 void stop() {
-    motor[motorA] = 0;
-    motor[motorC] = 0;
-    nMotorEncoder[motorA] = 0;
-    nMotorEncoder[motorC] = 0;
-    wait1Msec(100);
+        motor[motorA] = 0;
+            motor[motorC] = 0;
+                nMotorEncoder[motorA] = 0;
+                    nMotorEncoder[motorC] = 0;
+                        wait1Msec(100);
 }
