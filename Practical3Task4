@@ -1,6 +1,6 @@
 Teleo-Reactive Procedure:
 
-Task3{
+Task4{
 
   if ( leftlight and rightlight below treshold AND lightflag)  =>  rotate
   
