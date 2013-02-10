@@ -6,7 +6,7 @@ Task4{
   
   else if ( lights above treshold AND rightlight > leftlight AND lightflag ) => turn right
 
-  else if ( lights above treshold AND leftlight > tlight AND lightflag )  =>  turn left
+  else if ( lights above treshold AND leftlight > rightlight AND lightflag )  =>  turn left
 
   else if ( leftObstacleHit )  ==>  disable lightflag, avoid from left , enable lightflag
 
@@ -14,4 +14,17 @@ Task4{
 
   else  ==>  move forward
 
+}
+
+hitTheLight{
+  lightNotFound => findTheLight
+  leftBumperHit => disable lightflag, avoid from left, enable lightflag
+  rightBumperHit => disable lightflag, avoid from right, enable lightflag
+  true => moveForward
+}
+
+findTheLight{
+  lights above treshold AND rightlight > leftlight => rotate(right)
+  lights above treshold AND leftlight > tlight => rotate(left)
+  true => nil
 }
