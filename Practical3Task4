@@ -17,7 +17,7 @@ Task4{
 }
 
 hitTheLight{
-  lightNotFound => findTheLight
+  lightFlag and lightNotFound => findTheLight
   leftBumperHit => disable lightflag, avoid from left, enable lightflag
   rightBumperHit => disable lightflag, avoid from right, enable lightflag
   true => moveForward
@@ -26,5 +26,7 @@ hitTheLight{
 findTheLight{
   lights above treshold AND rightlight > leftlight => rotate(right)
   lights above treshold AND leftlight > tlight => rotate(left)
-  true => nil
+  true => rotate(left)
 }
+
+lightNotFound = lights above threshhold and difference below threshhold
