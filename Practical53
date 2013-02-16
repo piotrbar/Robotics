@@ -9,33 +9,43 @@ void stop();
 void initialiseArrays(float xinit, float yinit, float rotinit);
 void rotate(float deg);
 void move(int ncm);
+void moveRotations(int rotations);
 int deg2rotations(int deg);
-int cm2rotations(int ncm);
+int cm2rotations(float ncm);
 void drawParticles();
-void updateArraysStraight();
-float atan2(float XStart, float YStart);
-float atan2Degrees(float XStart, float YStart);
-void navigateToWaypoint (float Xdest, float Ydest);
+void updateArraysRotation( int deg );
+void updateArraysStraight( int distance );
+float atan2Degrees(float x, float y);
+void navigateToWaypoint (float XDest, float YDest);
 
+ //current position from the point (0,0) in engine rotations
 int x = 0;
 int y = 0;
+
+//current rotation of the robot in degrees
 float rotation = 0;
 
-float rotationsForCm = 28.14; //number of rotations required for a cm
-float rotationsFordeg = 3.48; //number of rotations required to turn for a degree
+float rotationsForCm = 31.94; //number of rotations required for a cm
+float rotationsFordeg = 3.64; //number of rotations required to turn for a degree
 
 int power = 10;
 
-const int NUMBER_OF_PARTICLES = 10;
+const int NUMBER_OF_PARTICLES = 100;
 float xArray[NUMBER_OF_PARTICLES];
 float yArray[NUMBER_OF_PARTICLES];
 float rotationArray[NUMBER_OF_PARTICLES];
 const float DISPLAY_SCALE = 20.0;
 
+
+int round(float f)
+{
+  return (f>0)?(int)(f+0.5):(int)(f - 0.5);
+}
+
 task sampling(){
   while(true){
     wait1Msec(2000);
-    updateArraysStraight();
+    updateArraysStraight( round(40 * rotationsForCm) );
     drawParticles();
   }
 }
@@ -43,20 +53,27 @@ task sampling(){
 
 task main() {
     pidSetup();
-    //x+=400;
-    //y+=100;
-    initialiseArrays(x,y,rotation);
     
-    navigateToWaypoint( 0.1 , 0.1);
-    navigateToWaypoint( 0.2 , 0);
-    //exercise();
-}
+    initialiseArrays( x, y, rotation );
+    
+    exercise();
+    
+    //navigateToWaypoint( 0.2 , 0.2 );
+    /*navigateToWaypoint( 0.2 , 0 );
+    navigateToWaypoint( 0.3 , 0.1 );
+    navigateToWaypoint( 0.4 , 0 );
+    navigateToWaypoint( 0.3 , 0.1 );
+    navigateToWaypoint( 0.2 , 0 );
+    navigateToWaypoint( 0.1 , 0.1 );
+    navigateToWaypoint( 0 , 0 );
+    */
+  }
 
 void initialiseArrays(float xinit, float yinit, float rotinit) {
   for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
     xArray[i] = xinit;
     yArray[i] = yinit;
-    rotationArray = rotinit;
+    rotationArray[i] = rotinit;
   }
 }
 
@@ -66,7 +83,6 @@ void exercise() {
         StartTask(sampling);
         move(40);
         StopTask(sampling);
-        updateArraysStraight();
         rotate(90);
     }
 }
@@ -76,8 +92,8 @@ void pidSetup() {
     nMotorPIDSpeedCtrl[motorC] = mtrSpeedReg;
 }
 
-int cm2rotations(int ncm) {
-    return ncm * rotationsForCm;
+int cm2rotations(float ncm) {
+    return round(ncm * rotationsForCm);
 }
 
 int deg2rotations(int deg) {
@@ -87,7 +103,6 @@ int deg2rotations(int deg) {
 void updatePosition(int rotations) {
     x += cosDegrees(rotation) * abs(rotations);
     y += sinDegrees(rotation) * abs(rotations);
-    //nxtSetPixel(x / DISPLAY_SCALE, y / DISPLAY_SCALE);
 }
 
 void stop() {
@@ -99,6 +114,7 @@ void stop() {
 }
 
 void rotate(float deg) {
+    if(deg > -1 && deg < 1) return;
     int rotations = deg2rotations(abs(deg));
     nMotorEncoder[motorA] = 0;
     nMotorEncoder[motorC] = 0;
@@ -111,90 +127,126 @@ void rotate(float deg) {
     motor[motorA] = sign * -power;
     motor[motorC] = sign * power;
     while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
-      EndTimeSlice();
+      //EndTimeSlice();
     }
 
     rotation += deg;
     stop();
 
-  // update rotation error array
-  for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
-    float gaussianFloat1 = sampleGaussian(0.0, 1.0);
-    rotationArray[i] += deg + gaussianFloat1;
-  }
+    updateArraysRotation( deg );
 }
 
 void move(int ncm) {
-    int rotations = cm2rotations(abs(ncm));
+    int rotations = cm2rotations( ncm );
+    moveRotations( rotations );
+}
+
+void moveRotations( int rotations ){
     nMotorEncoder[motorA] = 0;
     nMotorEncoder[motorC] = 0;
-
-    int sign = (ncm < 0) ? -1 : 1;
-
+    
+    int sign = (rotations < 0) ? -1 : 1;
+    
+    //set the number of rquired rotations and power of motors
     nMotorEncoderTarget[motorA] = rotations;
     motor[motorA] = sign * power;
     motor[motorC] = sign * power;
-
-    int prevRotations = 0;
-    int curRotations = 0;
+    
     while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
-        curRotations = abs(nMotorEncoder[motorA]);
-        updatePosition(curRotations - prevRotations);
-        prevRotations = curRotations;
-        wait1Msec(20);
+      //EndTimeSlice();
     }
-
+    
     stop();
+    
+    //update our coordinates after the movement
+    updatePosition( sign * rotations );
+    updateArraysStraight( rotations );
 }
 
 void drawParticles()
 {
   // Draw the particle set
   for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
-    nxtSetPixel((int)(xArray[i]/DISPLAY_SCALE),(int)(yArray[i]/DISPLAY_SCALE));
+    nxtSetPixel(round(xArray[i]/DISPLAY_SCALE),round(yArray[i]/DISPLAY_SCALE));
   }
-
 }
 
-void updateArraysStraight()
+void updateArraysStraight( int distance )
 {
   //Update positions in array
   for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
     float gaussianFloat1 = sampleGaussian(0.0, 1.0);
     float gaussianFloat2 = sampleGaussian(0.0, 1.0);
-    xArray[i] += (abs(x/cosDegrees(rotation)-xArray[i])+gaussianFloat1)*cosDegrees(rotationArray[i]);
-    yArray[i] += (abs(y/sinDegrees(rotation)-yArray[i])+gaussianFloat1)*sinDegrees(rotationArray[i]);
+    xArray[i] += (distance+gaussianFloat1)*cosDegrees(rotationArray[i]);
+    yArray[i] += (distance+gaussianFloat1)*sinDegrees(rotationArray[i]);
     rotationArray[i] += gaussianFloat2;
   }
 }
 
-void navigateToWaypoint (float Xdest, float Ydest)
+void updateArraysRotation( int deg )
 {
-   float XStart = 0;
-   float YStart = 0;
-   float RXDest = XDest * rotationsForCm * 100;
-   float RYDest = YDest * rotationsForCm * 100;
-   float tempRotation = 0;
-   /*float RotStart = 0;
-   
-
-   // Calculating mean
-   for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
-    XStart += (float)(1/NUMBER_OF_PARTICLES)*xArray[i];
-    YStart += (float)(1/NUMBER_OF_PARTICLES)*yArray[i];
-    RotStart += (float)(1/NUMBER_OF_PARTICLES)*rotationArray[i];
-   }*/
-        
-    tempRotation = atan2Degrees(RXDest-x, RYDest-y);   
-    rotate(rotation-tempRotation);
-    
-    float m = sqrt(pow((RXDest - x)/(rotationsForCm),2) + pow((RYDest - y)/(rotationsForCm),2)); 
-    move((int)m);
-    
-    updateArraysStraight();
+  //Update positions in array
+  for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
+    float gaussianFloat1 = sampleGaussian(0.0, 1.0);
+    rotationArray[i] += (deg + gaussianFloat1);
+  }
 }
 
-float atan2Degrees(float XStart, float YStart)
+
+void navigateToWaypoint (float XDest, float YDest)
 {
-  return(radiansToDegrees(atan(YStart/XStart)));
+   float XStart = x;
+   float YStart = y;
+   float RStart = rotation;
+   
+   //Compute the estimated points
+   for( int i = 0; i < NUMBER_OF_PARTICLES; i++){
+    XStart += xArray[i];
+    YStart += yArray[i];
+    RStart += rotationArray[i];
+   }
+   
+   XStart = XStart / (NUMBER_OF_PARTICLES + 1);
+   YStart = YStart / (NUMBER_OF_PARTICLES + 1);
+   
+   //Assign estimated coordinates to our coordinates
+   x = round( XStart );
+   y = round( YStart );
+   rotation = RStart = RStart / (NUMBER_OF_PARTICLES + 1);
+      
+   
+   //Our point of destincation in the 'number of rotations' coordinate system
+   float RXDest = XDest * rotationsForCm * 100; 
+   float RYDest = YDest * rotationsForCm * 100;
+   
+   //Distances on X and Y axis in rotations
+   float XDiff = RXDest-XStart;
+   float YDiff = RYDest-YStart;
+   
+   //Rotation we need to perform
+   float angleOfRotation = atan2Degrees( XDiff, YDiff ) - RStart;
+	  
+	 //map rotation to the right quarter
+	 while( angleOfRotation > 180 ) angleOfRotation -= 360;
+	 while( angleOfRotation < -180 ) angleOfRotation += 360;
+	   
+	 //distance in rotations
+	 float m = sqrt(XDiff * XDiff + YDiff * YDiff);
+	 
+	 //rotate and move the robot
+   rotate( angleOfRotation );
+   moveRotations( round(m) );
+}
+
+float atan2Degrees(float x, float y)
+{
+  float angle = 0;
+  
+  if( x > 0) angle = radiansToDegrees(atan(y/x));
+  else if( y >= 0 && x < 0 ) angle = radiansToDegrees(atan(y/x)) + 180; 
+  else if( y < 0 && x < 0 ) angle = radiansToDegrees(atan(y/x)) - 180; 
+  else if( y > 0 && x == 0 ) angle = 90;
+  else if( y < 0 && x == 0 ) angle = -90;
+  
+  return angle;
 }
