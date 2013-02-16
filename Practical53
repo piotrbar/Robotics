@@ -24,7 +24,7 @@ int y = 0;
 
 //current rotation of the robot in degrees
 float rotation = 0;
-
+ 
 float rotationsForCm = 31.94; //number of rotations required for a cm
 float rotationsFordeg = 3.64; //number of rotations required to turn for a degree
 
@@ -41,15 +41,6 @@ int round(float f)
 {
   return (f>0)?(int)(f+0.5):(int)(f - 0.5);
 }
-
-task sampling(){
-  while(true){
-    wait1Msec(2000);
-    updateArraysStraight( round(40 * rotationsForCm) );
-    drawParticles();
-  }
-}
-
 
 task main() {
     pidSetup();
@@ -80,9 +71,10 @@ void initialiseArrays(float xinit, float yinit, float rotinit) {
 void exercise() {
     int i;
     for (i = 0; i < 4; i++) {
-        StartTask(sampling);
-        move(40);
-        StopTask(sampling);
+        for(int j = 0; j < 2; j++){
+          move(20);
+          drawParticles();
+        }
         rotate(90);
     }
 }
@@ -101,8 +93,13 @@ int deg2rotations(int deg) {
 }
 
 void updatePosition(int rotations) {
+    int oldX = x;
+    int oldY = y;
+        
     x += cosDegrees(rotation) * abs(rotations);
     y += sinDegrees(rotation) * abs(rotations);
+
+    nxtDrawLine( round(oldX/DISPLAY_SCALE), round(oldY/DISPLAY_SCALE), round(x/DISPLAY_SCALE), round(y/DISPLAY_SCALE) );
 }
 
 void stop() {
@@ -153,21 +150,22 @@ void moveRotations( int rotations ){
     motor[motorC] = sign * power;
     
     while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
-      //EndTimeSlice();
+      //EndTimeSlice()
     }
     
     stop();
     
     //update our coordinates after the movement
+    
     updatePosition( sign * rotations );
     updateArraysStraight( rotations );
-}
+  }
 
 void drawParticles()
 {
   // Draw the particle set
   for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
-    nxtSetPixel(round(xArray[i]/DISPLAY_SCALE),round(yArray[i]/DISPLAY_SCALE));
+    nxtSetPixel(round(xArray[i]/DISPLAY_SCALE), round(yArray[i]/DISPLAY_SCALE));
   }
 }
 
@@ -224,7 +222,7 @@ void navigateToWaypoint (float XDest, float YDest)
    float YDiff = RYDest-YStart;
    
    //Rotation we need to perform
-   float angleOfRotation = atan2Degrees( XDiff, YDiff ) - RStart;
+	 float angleOfRotation = atan2Degrees( XDiff, YDiff ) - RStart;
 	  
 	 //map rotation to the right quarter
 	 while( angleOfRotation > 180 ) angleOfRotation -= 360;
