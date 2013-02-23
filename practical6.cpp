@@ -31,435 +31,446 @@ void resample();
 int findIndexOfResampledParticle (float randNum);
 
  //current position from the point (0,0) in engine rotations
-int x = 0;
-int y = 0;
-
-//current rotation of the robot in degrees
-float rotation = 0;
+ int x = 0;
+ int y = 0;
  
-float rotationsForCm = 31.94; //number of rotations required for a cm
-float rotationsFordeg = 3.64; //number of rotations required to turn for a degree
-
-int power = 10;
-
-const int NUMBER_OF_PARTICLES = 10;
-const int NUMBER_OF_WALLS = 8;
-
-float xArray[NUMBER_OF_PARTICLES];
-float yArray[NUMBER_OF_PARTICLES];
-float rotationArray[NUMBER_OF_PARTICLES];
-float weightArray[NUMBER_OF_PARTICLES];
-float cumulativeWeightArray[NUMBER_OF_PARTICLES];
-
-// Definitions of walls
-// a: O to A
-// b: A to B
-// c: C to D
-// d: D to E
-// e: E to F
-// f: F to G
-// g: G to H
-// h: H to O
-//                                      a    b    c    d    e    f    g    h
-float wallAxArray[NUMBER_OF_WALLS] = {  0,   0,  84,  84, 168, 168, 210, 210};
-float wallAyArray[NUMBER_OF_WALLS] = {  0, 168, 126, 210, 210,  84,  84,   0};
-float wallBxArray[NUMBER_OF_WALLS] = {  0,  84,  84, 168, 168, 210, 210,   0};
-float wallByArray[NUMBER_OF_WALLS] = {168, 168, 210, 210,  84,  84,   0,   0};
-
-int xOffset = 30;
-int yOffset = 10;
-
-const float DISPLAY_SCALE = 1.0; //number of centimeters per pixel point on the screen
-
-
-int round(float f)
-{
-  return (f>0)?(int)(f+0.5):(int)(f - 0.5);
-}
- 
-
-task main() {
-     pidSetup();
-    
-     initialiseArrays( x, y, rotation );
-     initialiseWeights();
-    
-    //exercise();
-   // exercise53();
-    exercise6(); 
+ //current rotation of the robot in degrees
+ float rotation = 0;
+  
+  float rotationsForCm = 31.94; //number of rotations required for a cm
+  float rotationsFordeg = 3.64; //number of rotations required to turn for a degree
+  
+  int power = 20;
+  
+  const int NUMBER_OF_PARTICLES = 10;
+  const int NUMBER_OF_WALLS = 8;
+  
+  float xArray[NUMBER_OF_PARTICLES];
+  float yArray[NUMBER_OF_PARTICLES];
+  float rotationArray[NUMBER_OF_PARTICLES];
+  float weightArray[NUMBER_OF_PARTICLES];
+  float cumulativeWeightArray[NUMBER_OF_PARTICLES];
+  
+  // Definitions of walls
+  // a: O to A
+  // b: A to B
+  // c: C to D
+  // d: D to E
+  // e: E to F
+  // f: F to G
+  // g: G to H
+  // h: H to O
+  //                                      a    b    c    d    e    f    g    h
+  float wallAxArray[NUMBER_OF_WALLS] = {  0,   0,  0.84,  0.84, 1.68, 1.68, 210, 2.10};
+  float wallAyArray[NUMBER_OF_WALLS] = {  0, 1.68, 1.26, 2.10, 2.10, 0.84, 0.84,   0};
+  float wallBxArray[NUMBER_OF_WALLS] = {  0,  0.84,  0.84, 1.68, 1.68, 2.10, 2.10,   0};
+  float wallByArray[NUMBER_OF_WALLS] = {1.68, 1.68, 2.10, 2.10,  0.84,  0.84,   0,   0};
+  
+  //float wallAxArray[NUMBER_OF_WALLS] = {  0,   0,  0.6,  0.6};
+  //float wallAyArray[NUMBER_OF_WALLS] = {  0, 0.6, 0.6, 0};
+  //float wallBxArray[NUMBER_OF_WALLS] = {  0,  0.6,  0.6, 0};
+  //float wallByArray[NUMBER_OF_WALLS] = {0.6, 0.6, 0, 0};
+  
+  int xOffset = 30;
+  int yOffset = 10;
+  
+  const float DISPLAY_SCALE = 1.0; //number of centimeters per pixel point on the screen
+  
+  
+  int round(float f)
+  {
+  	  return (f>0)?(int)(f+0.5):(int)(f - 0.5);
   }
-
-void initialiseArrays(float xinit, float yinit, float rotinit) {
-  for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
-    xArray[i] = xinit;
-    yArray[i] = yinit;
-    rotationArray[i] = rotinit;
-  }
-}
-
-void exercise() {
-    int i;
-    for (i = 0; i < 4; i++) {
-        for(int j = 0; j < 2; j++){
-          move( 20 );
-          drawParticles();
-        }
-        
-        rotate( 90 );
-    }
-}
-
-void exercise6(){
-  navigateToWaypoint( 0.2 , 0 );
-  navigateToWaypoint( 0.2 , 0.2 );
-  //navigateToWaypoint( 0.84 , 0.3 );
-  //navigateToWaypoint( 1.80 , 0.3 );
-  //navigateToWaypoint( 1.80 , 0.54 );
-  //navigateToWaypoint( 1.26 , 0.54 );
-  //navigateToWaypoint( 1.26 , 1.68 );
-  //navigateToWaypoint( 1.26 , 1.26 );
-  //navigateToWaypoint( 0.3 , 0.54 );
-  //navigateToWaypoint( 0.84 , 0.54 );
-  //navigateToWaypoint( 0.84 , 0.3 );
-}
-
-
-void exercise53(){
-  navigateToWaypoint( 0.5 , 0.5 );
-  navigateToWaypoint( 0.5 , -0.2 );
-  navigateToWaypoint( 0 , 0 );
-}
-
-void pidSetup() {
-    nMotorPIDSpeedCtrl[motorA] = mtrSpeedReg;
-    nMotorPIDSpeedCtrl[motorC] = mtrSpeedReg;
-}
-
-int cm2rotations(float ncm) {
-    return round( ncm * rotationsForCm );
-}
-
-int deg2rotations(int deg) {
-    return deg * rotationsFordeg;
-}
-
-void updatePosition(int rotations) {
-    int oldX = x;
-    int oldY = y;
-        
-    x += cosDegrees( rotation ) * abs( rotations );
-    y += sinDegrees( rotation ) * abs( rotations );
-
-    int opx =  round( oldX/( rotationsForCm * DISPLAY_SCALE ) ) + xOffset;
-    int opy =  round( oldY/( rotationsForCm * DISPLAY_SCALE ) ) + yOffset;
-    int px = round( x/( rotationsForCm * DISPLAY_SCALE ) ) + xOffset;
-    int py = round( y/( rotationsForCm * DISPLAY_SCALE ) ) + yOffset;
-    
-    nxtDrawLine( opx, opy, px, py );
-}
-
-void stop() {
-    motor[motorA] = 0;
-    motor[motorC] = 0;
-    nMotorEncoder[motorA] = 0;
-    nMotorEncoder[motorC] = 0;
-}
-
-void rotate(float deg) {
-    if(deg > -1 && deg < 1) return;
-    
-    int rotations = deg2rotations( abs( deg ) );
-    
-    nMotorEncoder[motorA] = 0;
-    nMotorEncoder[motorC] = 0;
-
-    nMotorEncoderTarget[motorA] = rotations;
-    nMotorEncoderTarget[motorC] = rotations;
-
-    int sign = (deg < 0) ? -1 : 1;
-
-    motor[motorA] = sign * -power;
-    motor[motorC] = sign * power;
-    
-    while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
-      //EndTimeSlice();
-    }
-
-    rotation += deg;
-    stop();
-
-    updateArraysRotation( deg );
-}
-
-void move(int ncm) {
-    int rotations = cm2rotations( ncm );
-    moveRotations( rotations );
-}
-
-void moveRotations( int rotations ){
-    nMotorEncoder[motorA] = 0;
-    nMotorEncoder[motorC] = 0;
-    
-    int sign = (rotations < 0) ? -1 : 1;
-    
-    //set the number of rquired rotations and power of motors
-    nMotorEncoderTarget[motorA] = rotations;
-    motor[motorA] = sign * power;
-    motor[motorC] = sign * power;
-    
-    while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
-      //EndTimeSlice()
-    }
-    
-    stop();
-    
-    //update our coordinates after the movement
-    
-    updatePosition( sign * rotations );
-    updateArraysStraight( rotations );
-  }
-
-void drawParticles()
-{
-  // Draw the particle set
-  for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
-    int px = round( xArray[i]/( rotationsForCm * DISPLAY_SCALE ) ) + xOffset;
-    int py = round( yArray[i]/( rotationsForCm * DISPLAY_SCALE ) ) + yOffset;
-    
-    nxtSetPixel( px, py );
-  }
-}
-
-void updateArraysStraight( int distance )
-{
-  //Update positions in array
-  for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
-    float gaussianFloat1 = sampleGaussian( 0.0, 1.0 );
-    float gaussianFloat2 = sampleGaussian( 0.0, 1.0 );
-    xArray[i] += ( distance+gaussianFloat1 ) * cosDegrees( rotationArray[i] );
-    yArray[i] += ( distance+gaussianFloat1 ) * sinDegrees( rotationArray[i] );
-    rotationArray[i] += gaussianFloat2;
-  }
-}
-
-void updateArraysRotation( int deg )
-{
-  //Update positions in the array
-  for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
-    float gaussianFloat1 = sampleGaussian( 0.0, 1.0 );
-    rotationArray[i] += ( deg + gaussianFloat1 );
-  }
-}
-
-float max(float a, float b ){
-  return (a>b)?a:b;
-}
-
-float min(float a, float b){
-  return (a>b)?b:a;
-}
-void navigateToWaypoint (float XDest, float YDest)
-{
-   float XStart = x;
-   float YStart = y;
-   float RStart = rotation;
    
-   //Compute the estimated points
-   for( int i = 0; i < NUMBER_OF_PARTICLES; i++){
-    XStart += xArray[i];
-    YStart += yArray[i];
-    RStart += rotationArray[i];
+   
+   task main() {
+   	     pidSetup();
+   	          initialiseWeights();
+   	              //exercise();
+   	                 // exercise53();
+   	                      exercise6(); 
    }
    
-   XStart = XStart / ( NUMBER_OF_PARTICLES + 1 );
-   YStart = YStart / ( NUMBER_OF_PARTICLES + 1 );
-   
-   //Assign estimated coordinates to our coordinates
-   x = round( XStart );
-   y = round( YStart );
-   rotation = RStart = RStart / ( NUMBER_OF_PARTICLES + 1 );
-      
-   
-   //Our point of destincation in the 'number of rotations' coordinate system
-   float RXDest = XDest * rotationsForCm * 100; 
-   float RYDest = YDest * rotationsForCm * 100;
-   
-   //Distances on X and Y axis in rotations
-   float XDiff = RXDest-XStart;
-   float YDiff = RYDest-YStart;
-   
-   //Rotation we need to perform
-   float angleOfRotation = atan2Degrees( XDiff, YDiff ) - RStart;
-	  
-	 //map rotation to the right quarter
-	 while( angleOfRotation > 180 ) angleOfRotation -= 360;
-	 while( angleOfRotation < -180 ) angleOfRotation += 360;
-	   
-	 //distance in rotations
-	 float m = sqrt( XDiff * XDiff + YDiff * YDiff );
-	 
-	 float i = m;
-	 while(i > 0){
-	   //rotate and move the robot
-     rotate( angleOfRotation );
-     moveRotations( round( min((20* rotationsForCm), i) ) );
-     i -= (20 * rotationsForCm);
-     
-     stop();
-     float sonar =  SensorValue(sonarSensor) - 6.3;
-     updateWeightArray(sonar*rotationsForCm);
-     normalise();
-     updateCumulativeWeightArray();
-     resample();
-     drawParticles();
-     wait1Msec(1000);
+   void initialiseArrays(float xinit, float yinit, float rotinit) {
+   	  for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
+   	  	    xArray[i] = xinit;
+   	  	        yArray[i] = yinit;
+   	  	            rotationArray[i] = rotinit;
+   	  }
    }
-}
-
-float atan2Degrees(float x, float y)
-{
-  float angle = 0;
-  
-  if( x > 0) angle = radiansToDegrees( atan( y/x ) );
-  else if( y >= 0 && x < 0 ) angle = radiansToDegrees( atan( y/x ) ) + 180; 
-  else if( y < 0 && x < 0 ) angle = radiansToDegrees( atan( y/x ) ) - 180; 
-  else if( y > 0 && x == 0 ) angle = 90;
-  else if( y < 0 && x == 0 ) angle = -90;
-  
-  return angle;
-}
-
-// Takes the position estimate of a particle (x, y, theta) and the sonar measurement z
-// and returns a likelihood value.
-float calculate_likelihood(float x, float y, float theta, float z) {
-  // check which wall the particle would hit
-  float minDistance = 300.0; // distance between the particle and the wall,
-  int wall = -1;
-  for(int i=0; i<NUMBER_OF_WALLS; ++i) {
-    float Ax = wallAxArray[i];
-    float Ay = wallAyArray[i];
-    float Bx = wallBxArray[i];
-    float By = wallByArray[i];
-    
-    float m = checkIfLinesIntersect(x,y,theta,Ax,Ay,Bx,By);
-    // if a particle would hit the wall, find the wall that would be hit first
-    if(m>=0.0) {
-      if(m < minDistance) {
-        minDistance = m;
-        wall = i;
-      }
-    }
+   
+   void exercise() {
+   	    int i;
+   	        for (i = 0; i < 4; i++) {
+   	        	        for(int j = 0; j < 2; j++){
+   	        	        	          move( 20 );
+   	        	        	                    drawParticles();
+   	        	        }
+   	        	                
+   	        	                        rotate( 90 );
+   	        }
+   }
+   
+   void exercise6(){
+   	  //navigateToWaypoint( 0.2 , 0 );
+   	    //navigateToWaypoint( 0.2 , 0.2 );
+   	      x = 0.84 * rotationsForCm * 100;
+   	        y = 0.3 * rotationsForCm * 100;
+   	          initialiseArrays( x, y, rotation );
+   	            navigateToWaypoint( 1.80 , 0.3 );
+   	              navigateToWaypoint( 1.80 , 0.54 );
+   	                navigateToWaypoint( 1.26 , 0.54 );
+   	                  navigateToWaypoint( 1.26 , 1.68 );
+   	                    navigateToWaypoint( 1.26 , 1.26 );
+   	                      navigateToWaypoint( 0.3 , 0.54 );
+   	                        navigateToWaypoint( 0.84 , 0.54 );
+   	                          navigateToWaypoint( 0.84 , 0.3 );
+   }
+   
+   
+   void exercise53(){
+   	  navigateToWaypoint( 0.5 , 0.5 );
+   	    navigateToWaypoint( 0.5 , -0.2 );
+   	      navigateToWaypoint( 0 , 0 );
+   }
+   
+   void pidSetup() {
+   	    nMotorPIDSpeedCtrl[motorA] = mtrSpeedReg;
+   	        nMotorPIDSpeedCtrl[motorC] = mtrSpeedReg;
+   }
+   
+   int cm2rotations(float ncm) {
+   	    return round( ncm * rotationsForCm );
+   }
+   
+   int deg2rotations(int deg) {
+   	    return deg * rotationsFordeg;
+   }
+   
+   void updatePosition(int rotations) {
+   	    int oldX = x;
+   	        int oldY = y;
+   	                
+   	                    x += cosDegrees( rotation ) * abs( rotations );
+   	                        y += sinDegrees( rotation ) * abs( rotations );
+   	                        
+   	                            int opx =  round( oldX/( rotationsForCm * DISPLAY_SCALE ) ) + xOffset;
+   	                                int opy =  round( oldY/( rotationsForCm * DISPLAY_SCALE ) ) + yOffset;
+   	                                    int px = round( x/( rotationsForCm * DISPLAY_SCALE ) ) + xOffset;
+   	                                        int py = round( y/( rotationsForCm * DISPLAY_SCALE ) ) + yOffset;
+   	                                            
+   	                                                nxtDrawLine( opx, opy, px, py );
+   }
+   
+   void stop() {
+   	    motor[motorA] = 0;
+   	        motor[motorC] = 0;
+   	            nMotorEncoder[motorA] = 0;
+   	                nMotorEncoder[motorC] = 0;
+   }
+   
+   void rotate(float deg) {
+   	    if(deg > -1 && deg < 1) return;
+   	        
+   	            int rotations = deg2rotations( abs( deg ) );
+   	                
+   	                    nMotorEncoder[motorA] = 0;
+   	                        nMotorEncoder[motorC] = 0;
+   	                        
+   	                            nMotorEncoderTarget[motorA] = rotations;
+   	                                nMotorEncoderTarget[motorC] = rotations;
+   	                                
+   	                                    int sign = (deg < 0) ? -1 : 1;
+   	                                    
+   	                                        motor[motorA] = sign * power;
+   	                                            motor[motorC] = sign * -power;
+   	                                                
+   	                                                    while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
+   	                                                    	      //EndTimeSlice();
+   	                                                    }
+   	                                                    
+   	                                                        rotation += deg;
+   	                                                            stop();
+   	                                                            
+   	                                                                updateArraysRotation( deg );
+   }
+   
+   void move(int ncm) {
+   	    int rotations = cm2rotations( ncm );
+   	        moveRotations( rotations );
+   }
+   
+   void moveRotations( int rotations ){
+   	    nMotorEncoder[motorA] = 0;
+   	        nMotorEncoder[motorC] = 0;
+   	            
+   	                int sign = (rotations < 0) ? -1 : 1;
+   	                    
+   	                        //set the number of rquired rotations and power of motors
+   	                            nMotorEncoderTarget[motorA] = rotations;
+   	                                motor[motorA] = sign * power;
+   	                                    motor[motorC] = sign * power;
+   	                                        
+   	                                            while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
+   	                                            	      //EndTimeSlice()
+   	                                            }
+   	                                                
+   	                                                    stop();
+   	                                                        
+   	                                                            //update our coordinates after the movement
+   	                                                                
+   	                                                                    updatePosition( sign * rotations );
+   	                                                                        updateArraysStraight( rotations );
+   }
+   
+   void drawParticles()
+   {
+   	  // Draw the particle set
+   	    for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
+   	    	    int px = round( xArray[i]/( rotationsForCm * DISPLAY_SCALE ) ) + xOffset;
+   	    	        int py = round( yArray[i]/( rotationsForCm * DISPLAY_SCALE ) ) + yOffset;
+   	    	            
+   	    	                nxtSetPixel( px, py );
+   	    }
+   }
+   
+   void updateArraysStraight( int distance )
+   {
+   	  //Update positions in array
+   	    for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
+   	    	    float gaussianFloat1 = sampleGaussian( 0.0, 1.0 );
+   	    	        float gaussianFloat2 = sampleGaussian( 0.0, 1.0 )/3;
+   	    	            xArray[i] += ( distance+gaussianFloat1 ) * cosDegrees( rotationArray[i] );
+   	    	                yArray[i] += ( distance+gaussianFloat1 ) * sinDegrees( rotationArray[i] );
+   	    	                    rotationArray[i] += gaussianFloat2;
+   	    }
+   }
+   
+   void updateArraysRotation( int deg )
+   {
+   	  //Update positions in the array
+   	    for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
+   	    	    float gaussianFloat1 = sampleGaussian( 0.0, 1.0 );
+   	    	        rotationArray[i] += ( deg + gaussianFloat1 );
+   	    }
+   }
+   
+   float max(float a, float b ){
+   	  return (a>b)?a:b;
+   }
+   
+   float min(float a, float b){
+   	  return (a>b)?b:a;
+   }
+   void navigateToWaypoint (float XDest, float YDest)
+   {
+   	   float XStart = x;
+   	      float YStart = y;
+   	         float RStart = rotation;
+   	            
+   	               //Compute the estimated points
+   	                  for( int i = 0; i < NUMBER_OF_PARTICLES; i++){
+   	                  	    XStart += xArray[i];
+   	                  	        YStart += yArray[i];
+   	                  	            RStart += rotationArray[i];
+   	                  }
+   	                     
+   	                        XStart = XStart / ( NUMBER_OF_PARTICLES + 1 );
+   	                           YStart = YStart / ( NUMBER_OF_PARTICLES + 1 );
+   	                              RStart = RStart / ( NUMBER_OF_PARTICLES + 1 );
+   	                                 
+   	                                    //Assign estimated coordinates to our coordinates
+   	                                       x = round( XStart );
+   	                                          y = round( YStart );
+   	                                             rotation = RStart;
+   	                                                
+   	                                                   //Our point of destincation in the 'number of rotations' coordinate system
+   	                                                      float RXDest = XDest * rotationsForCm * 100; 
+   	                                                         float RYDest = YDest * rotationsForCm * 100;
+   	                                                            
+   	                                                               //Distances on X and Y axis in rotations
+   	                                                                  float XDiff = RXDest-(XStart);
+   	                                                                     float YDiff = RYDest-(YStart);
+   	                                                                        
+   	                                                                           //Rotation we need to perform
+   	                                                                              float angleOfRotation = atan2Degrees( XDiff, YDiff ) - RStart;
+   	                                                                              	  
+   	                                                                              	  	 //map rotation to the right quarter
+   	                                                                              	  	 	 while( angleOfRotation > 180 ) angleOfRotation -= 360;
+   	                                                                              	  	 	 	 while( angleOfRotation < -180 ) angleOfRotation += 360;
+   	                                                                              	  	 	 	 	   
+   	                                                                              	  	 	 	 	   	 //distance in rotations
+   	                                                                              	  	 	 	 	   	 	 float m = sqrt( XDiff * XDiff + YDiff * YDiff );
+   	                                                                              	  	 	 	 	   	 	 	 
+   	                                                                              	  	 	 	 	   	 	 	 	 float is = m;
+   	                                                                              	  	 	 	 	   	 	 	 	 	 while(is > 0){
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		   //rotate and move the robot
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		        rotate( angleOfRotation );
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		             moveRotations( round( min((20* rotationsForCm), is) ) );
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                  is -= min((20* rotationsForCm), is);
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                       
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                            stop();
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                                 //float sonar =  SensorValue(sonarSensor) - 6.3;
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                                      //updateWeightArray(sonar*rotationsForCm);
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                                           //normalise();
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                                               // updateCumulativeWeightArray();
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                                                    //resample();
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                                                         //drawParticles();
+   	                                                                              	  	 	 	 	   	 	 	 	 	 		                                                              wait1Msec(1000);
+   	                                                                              	  	 	 	 	   	 	 	 	 	 }
+   }
+   
+   float atan2Degrees(float x, float y)
+   {
+   	  float angle = 0;
+   	    
+   	      if( x > 0) angle = radiansToDegrees( atan( y/x ) );
+   	        else if( y >= 0 && x < 0 ) angle = radiansToDegrees( atan( y/x ) ) + 180; 
+   	          else if( y < 0 && x < 0 ) angle = radiansToDegrees( atan( y/x ) ) - 180; 
+   	            else if( y > 0 && x == 0 ) angle = 90;
+   	              else if( y < 0 && x == 0 ) angle = -90;
+   	                
+   	                  return angle;
+   }
+   
+   // Takes the position estimate of a particle (x, y, theta) and the sonar measurement z
+   // and returns a likelihood value.
+   float calculate_likelihood(float x, float y, float theta, float z) {
+   	  // check which wall the particle would hit
+   	    float minDistance = 300.0; // distance between the particle and the wall,
+   	      int wall = -1;
+   	        for(int i=0; i<NUMBER_OF_WALLS; ++i) {
+   	        	    float Ax = wallAxArray[i];
+   	        	        float Ay = wallAyArray[i];
+   	        	            float Bx = wallBxArray[i];
+   	        	                float By = wallByArray[i];
+   	        	                    
+   	        	                        float m = checkIfLinesIntersect(x,y,theta,Ax,Ay,Bx,By);
+   	        	                            // if a particle would hit the wall, find the wall that would be hit first
+   	        	                                if(m>=0.0) {
+   	        	                                	      if(m < minDistance) {
+   	        	                                	      	        minDistance = m;
+   	        	                                	      	                wall = i;
+   	        	                                	      }
+   	        	                                }
+   	        }
+   	          
+   	            // calculate likelihood value given the distance of particle from the wall and sonar measurement
+   	              //float like = sampleGaussianSpecific( 0, 1, z-minDistance ) + 0.5;
+   	                const float K = 0.05; //no particular reason why 1, TODO
+   	                  float sd2 = 1; //variance depending on sonar uncertainty TODO
+   	                    float like = exp(-1*(z-minDistance)*(z-minDistance)/(2*sd2)) + K;
+   	                      return like;
+   }
+   
+   // Checks if direction of a particle in point (l1_x1, l1_y) and angle 'theta' intersects with a wall
+   // given by points l2_x1 and l2_y2. If lines don't intersect, returns -1, otherwise the expected distance
+   // from the particle to the wall.
+   float checkIfLinesIntersect(float p0_x, float p0_y, float theta, float p2_x, float p2_y, float p3_x, float p3_y)
+   {
+   	  float length = 300.0; // arbitrary distance, long enough to intersect with any wall
+   	      float p1_x = (float) (p0_x + length * sin(theta)); // arbitrary end of line expressing particle direction
+   	          float p1_y = (float) (p0_y + length * cos(theta)); 
+   	              
+   	                  float s1_x, s1_y, s2_x, s2_y;
+   	                      s1_x = p1_x - p0_x;     s1_y = p1_y - p0_y;
+   	                          s2_x = p3_x - p2_x;     s2_y = p3_y - p2_y;
+   	                          
+   	                              float s, t;
+   	                                  s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
+   	                                      t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
+   	                                      
+   	                                          if (s >= 0 && s <= 1 && t >= 0 && t <= 1)
+   	                                              {
+   	                                              	        float i_x = p0_x + (t * s1_x);
+   	                                              	                float i_y = p0_y + (t * s1_y);
+   	                                              	                        float d = sqrt(
+   	                                              	                        	          abs(p0_x-i_x)*abs(p0_x-i_x) +
+   	                                              	                        	                    abs(p0_y-i_y)*abs(p0_x-i_x)  
+   	                                              	                        	                              );
+   	                                              	                        	                                      return d;
+   	                                              }
+   	                                              
+   	                                                  return -1.0; // No collision
+   }
+   
+   // Sets the weights to be equal (1/NUMBER_OF_PARTICLES) each in the beginning.
+   void initialiseWeights() {
+   	  for (int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+   	  	    weightArray[i] = 1.0/(float)NUMBER_OF_PARTICLES;
+   	  }
+   }
+   
+   // Updates weights taking into account likelihood of each particle and given distance z measured by sonar.
+   void updateWeightArray(float z) {
+   	  float likelihood;
+   	    for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+   	    	    likelihood = calculate_likelihood(xArray[i], yArray[i], rotationArray[i], z);
+   	    	        float k =  weightArray[i];
+   	    	            weightArray[i] = likelihood*k;
+   	    }
+   }
+   
+   // We assume that we have more than 1 particle.
+   void updateCumulativeWeightArray() {
+   	  cumulativeWeightArray[0] = weightArray[0];
+   	    for(int i=1; i<NUMBER_OF_PARTICLES; ++i) {
+   	    	    cumulativeWeightArray[i] = cumulativeWeightArray[i-1] + weightArray[i];
+   	    }
+   }
+   
+   // Scales weights of all particles so that they all add up to 1.
+   void normalise() {
+   	  // calculate sum of all unnormalised weights:
+   	    float W = 0;
+   	      for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+   	      	    W+=weightArray[i];
+   	      }
+   	        for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+   	        	    float k = weightArray[i];
+   	        	        weightArray[i] = k/W;
+   	        }
+   }
+   
+   // Draws NUMBER_OF_PARTICLES particles given their weights and updates the arrays with the new particles.
+   // Particles with bigger weights have higher probability to be drawn.
+   void resample() {
+   	  float tempXArray[NUMBER_OF_PARTICLES];
+   	    float tempYArray[NUMBER_OF_PARTICLES];
+   	      float temprotationArray[NUMBER_OF_PARTICLES];
+   	        float randNum;
+   	          for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+   	          	    randNum = (float) (random(100))/100.0;
+   	          	        int indexOfResPart = findIndexOfResampledParticle(randNum);
+   	          	            tempXArray[i] = xArray[indexOfResPart];
+   	          	                tempYArray[i] = yArray[indexOfResPart];
+   	          	                    temprotationArray[i] = rotationArray[indexOfResPart];
+   	          }
+   	          
+   	            // update the arrays with old particles with the ones that were resampled.
+   	              for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+   	              	    xArray[i] = tempXArray[i];
+   	              	        yArray[i] = tempYArray[i];
+   	              	            rotationArray[i] = temprotationArray[i];
+   	              }
+   }
+   
+   // Iterates through the cumulativeWeightArray and returns
+   // index of a particle that was resampled.
+   int findIndexOfResampledParticle (float randNum) {
+   	  // the range of cumulative probabilities for the first particle
+   	    // is 0 - probability of the first particle
+   	      if(randNum >= 0 && randNum < cumulativeWeightArray[0]) return 0;
+   	        for(int i=1; i<NUMBER_OF_PARTICLES; ++i) {
+   	        	    if(randNum>= cumulativeWeightArray[i-1] && randNum<cumulativeWeightArray[i])
+   	        	          return i;
+   	        }
+   	          return 0 ;
+   }
+   }
+   }
+   }
+   }
+   }
+   }
   }
-  
-  // calculate likelihood value given the distance of particle from the wall and sonar measurement
-  //float like = sampleGaussianSpecific( 0, 1, z-minDistance ) + 0.5;
-  const float K = 0.05; //no particular reason why 1, TODO
-  float sd2 = 1; //variance depending on sonar uncertainty TODO
-  float like = exp(-1*(z-minDistance)*(z-minDistance)/(2*sd2)) + K;
-  return like;
-}
-
-// Checks if direction of a particle in point (l1_x1, l1_y) and angle 'theta' intersects with a wall
-// given by points l2_x1 and l2_y2. If lines don't intersect, returns -1, otherwise the expected distance
-// from the particle to the wall.
-float checkIfLinesIntersect(float p0_x, float p0_y, float theta, float p2_x, float p2_y, float p3_x, float p3_y)
-{
-  float length = 300.0; // arbitrary distance, long enough to intersect with any wall
-    float p1_x = (float) (p0_x + length * sin(theta)); // arbitrary end of line expressing particle direction
-    float p1_y = (float) (p0_y + length * cos(theta)); 
-    
-    float s1_x, s1_y, s2_x, s2_y;
-    s1_x = p1_x - p0_x;     s1_y = p1_y - p0_y;
-    s2_x = p3_x - p2_x;     s2_y = p3_y - p2_y;
-
-    float s, t;
-    s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
-    t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
-
-    if (s >= 0 && s <= 1 && t >= 0 && t <= 1)
-    {
-        float i_x = p0_x + (t * s1_x);
-        float i_y = p0_y + (t * s1_y);
-        float d = sqrt(
-          abs(p0_x-i_x)*abs(p0_x-i_x) +
-          abs(p0_y-i_y)*abs(p0_x-i_x)  
-          );
-        return d;
-    }
-
-    return -1.0; // No collision
-}
-
-// Sets the weights to be equal (1/NUMBER_OF_PARTICLES) each in the beginning.
-void initialiseWeights() {
-  for (int i=0; i<NUMBER_OF_PARTICLES; ++i) {
-    weightArray[i] = 1.0/(float)NUMBER_OF_PARTICLES;
-  }
-}
-
-// Updates weights taking into account likelihood of each particle and given distance z measured by sonar.
-void updateWeightArray(float z) {
-  float likelihood;
-  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
-    likelihood = calculate_likelihood(xArray[i], yArray[i], rotationArray[i], z);
-    float k =  weightArray[i];
-    weightArray[i] = likelihood*k;
-  }
-}
-
-// We assume that we have more than 1 particle.
-void updateCumulativeWeightArray() {
-  cumulativeWeightArray[0] = weightArray[0];
-  for(int i=1; i<NUMBER_OF_PARTICLES; ++i) {
-    cumulativeWeightArray[i] = cumulativeWeightArray[i-1] + weightArray[i];
-  }
-}
-
-// Scales weights of all particles so that they all add up to 1.
-void normalise() {
-  // calculate sum of all unnormalised weights:
-  float W = 0;
-  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
-    W+=weightArray[i];
-  }
-  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
-    float k = weightArray[i];
-    weightArray[i] = k/W;
-  }
-}
-
-// Draws NUMBER_OF_PARTICLES particles given their weights and updates the arrays with the new particles.
-// Particles with bigger weights have higher probability to be drawn.
-void resample() {
-  float tempXArray[NUMBER_OF_PARTICLES];
-  float tempYArray[NUMBER_OF_PARTICLES];
-  float temprotationArray[NUMBER_OF_PARTICLES];
-  float randNum;
-  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
-    randNum = (float) (random(100))/100.0;
-    int indexOfResPart = findIndexOfResampledParticle(randNum);
-    tempXArray[i] = xArray[indexOfResPart];
-    tempYArray[i] = yArray[indexOfResPart];
-    temprotationArray[i] = rotationArray[indexOfResPart];
-  }
-
-  // update the arrays with old particles with the ones that were resampled.
-  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
-    xArray[i] = tempXArray[i];
-    yArray[i] = tempYArray[i];
-    rotationArray[i] = temprotationArray[i];
-  }
-}
-
-// Iterates through the cumulativeWeightArray and returns
-// index of a particle that was resampled.
-int findIndexOfResampledParticle (float randNum) {
-  // the range of cumulative probabilities for the first particle
-  // is 0 - probability of the first particle
-  if(randNum >= 0 && randNum < cumulativeWeightArray[0]) return 0;
-  for(int i=1; i<NUMBER_OF_PARTICLES; ++i) {
-    if(randNum>= cumulativeWeightArray[i-1] && randNum<cumulativeWeightArray[i])
-      return i;
-  }
-  return 0 ;
-}
