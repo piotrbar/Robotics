@@ -42,7 +42,7 @@ int findIndexOfResampledParticle (float randNum);
 
   int power = 20;
 
-  const int NUMBER_OF_PARTICLES = 10;
+  const int NUMBER_OF_PARTICLES = 100;
   const int NUMBER_OF_WALLS = 8;
 
   float xArray[NUMBER_OF_PARTICLES];
@@ -66,11 +66,6 @@ int findIndexOfResampledParticle (float randNum);
   float wallBxArray[NUMBER_OF_WALLS] = {  0,  0.84,  0.84, 1.68, 1.68, 2.10, 2.10,   0};
   float wallByArray[NUMBER_OF_WALLS] = {1.68, 1.68, 2.10, 2.10,  0.84,  0.84,   0,   0};
 
-  //float wallAxArray[NUMBER_OF_WALLS] = {  0,   0,  0.6,  0.6};
-  //float wallAyArray[NUMBER_OF_WALLS] = {  0, 0.6, 0.6, 0};
-  //float wallBxArray[NUMBER_OF_WALLS] = {  0,  0.6,  0.6, 0};
-  //float wallByArray[NUMBER_OF_WALLS] = {0.6, 0.6, 0, 0};
-
   int xOffset = 30;
   int yOffset = 10;
 
@@ -79,7 +74,7 @@ int findIndexOfResampledParticle (float randNum);
 
   int round(float f)
   {
-     return (f>0)?(int)(f+0.5):(int)(f - 0.5);
+  	  return (f>0)?(int)(f+0.5):(int)(f - 0.5);
   }
 
 
@@ -93,9 +88,9 @@ int findIndexOfResampledParticle (float randNum);
 
    void initialiseArrays(float xinit, float yinit, float rotinit) {
    	  for (int i = 0; i < NUMBER_OF_PARTICLES; i++) {
-   	  	    xArray[i] = xinit;
-   	  	        yArray[i] = yinit;
-   	  	            rotationArray[i] = rotinit;
+  	    xArray[i] = xinit;
+        yArray[i] = yinit;
+        rotationArray[i] = rotinit;
    	  }
    }
 
@@ -118,8 +113,8 @@ int findIndexOfResampledParticle (float randNum);
  	    y = 0.3 * rotationsForCm * 100;
  	    initialiseArrays( x, y, rotation );
  	    navigateToWaypoint( 1.80 , 0.3 );
-      navigateToWaypoint( 1.80 , 0.54 );
-      navigateToWaypoint( 1.26 , 0.54 );
+      //navigateToWaypoint( 1.80 , 0.54 );
+      //navigateToWaypoint( 1.26 , 0.54 );
       //navigateToWaypoint( 1.26 , 1.68 );
       //navigateToWaypoint( 1.26 , 1.26 );
       //navigateToWaypoint( 0.3 , 0.54 );
@@ -298,6 +293,10 @@ int findIndexOfResampledParticle (float randNum);
 	 	 	while(is > 20){ //accuracy fix ;)
 	 	 	  //compute our estimated position
 	 	 	  //Compute the estimated points
+	 	 	  XStart = 0;
+	 	 	  YStart = 0;
+	 	 	  RStart = 0;
+	 	 	  
 	      for( int i = 0; i < NUMBER_OF_PARTICLES; i++){
 	  	    XStart += (xArray[i]*weightArray[i]);
 	  	    YStart += (yArray[i]*weightArray[i]);
@@ -357,10 +356,10 @@ int findIndexOfResampledParticle (float randNum);
    	  float minDistance = 30000.0; // distance between the particle and the wall,
    	  int wall = -1;
       for(int i=0; i<NUMBER_OF_WALLS; ++i) {
-  	    float Ax = wallAxArray[i]*rotationsForCm;
-        float Ay = wallAyArray[i]*rotationsForCm;
-        float Bx = wallBxArray[i]*rotationsForCm;
-        float By = wallByArray[i]*rotationsForCm;
+  	    float Ax = wallAxArray[i]*100*rotationsForCm;
+        float Ay = wallAyArray[i]*100*rotationsForCm;
+        float Bx = wallBxArray[i]*100*rotationsForCm;
+        float By = wallByArray[i]*100*rotationsForCm;
 
         float m = checkIfLinesIntersect(x,y,theta,Ax,Ay,Bx,By);
         // if a particle would hit the wall, find the wall that would be hit first
@@ -385,13 +384,16 @@ int findIndexOfResampledParticle (float randNum);
    // from the particle to the wall.
    float checkIfLinesIntersect(float p0_x, float p0_y, float theta, float p2_x, float p2_y, float p3_x, float p3_y)
    {
-   	  float length = 300.0; // arbitrary distance, long enough to intersect with any wall
+   	  float length = 30000.0; // arbitrary distance, long enough to intersect with any wall
    	  float p1_x = (float) (p0_x + length * sin(theta)); // arbitrary end of line expressing particle direction
    	  float p1_y = (float) (p0_y + length * cos(theta));
 
       float s1_x, s1_y, s2_x, s2_y;
-      s1_x = p1_x - p0_x;     s1_y = p1_y - p0_y;
-      s2_x = p3_x - p2_x;     s2_y = p3_y - p2_y;
+      s1_x = p1_x - p0_x;     
+      s1_y = p1_y - p0_y;
+     
+      s2_x = p3_x - p2_x;     
+      s2_y = p3_y - p2_y;
 
 	    float s, t;
       s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
@@ -402,14 +404,14 @@ int findIndexOfResampledParticle (float randNum);
         float i_y = p0_y + (t * s1_y);
         float d = sqrt(
 	          abs(p0_x-i_x)*abs(p0_x-i_x) +
-            abs(p0_y-i_y)*abs(p0_x-i_x)
+            abs(p0_y-i_y)*abs(p0_y-i_y)
                       );
 	      return d;
       }
 
       return -1.0; // No collision
    }
-
+   
    // Sets the weights to be equal (1/NUMBER_OF_PARTICLES) each in the beginning.
    void initialiseWeights() {
    	  for (int i=0; i<NUMBER_OF_PARTICLES; ++i) {
