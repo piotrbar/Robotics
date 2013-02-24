@@ -7,6 +7,7 @@ void exercise();
 void exercise53();
 void exercise6();
 void pidSetup();
+float getDistanceToWall(float a, float b, float theta, float x1, float y1, float x2, float y2);
 void stop();
 void initialiseArrays(float xinit, float yinit, float rotinit);
 void rotate(float deg);
@@ -20,7 +21,6 @@ void updateArraysRotation( int deg );
 void updateArraysStraight( int distance );
 float atan2Degrees(float x, float y);
 void navigateToWaypoint (float XDest, float YDest);
-
 float checkIfLinesIntersect(float p0_x, float p0_y, float theta, float p2_x, float p2_y, float p3_x, float p3_y);
 float calculate_likelihood(float x, float y, float theta, float z);
 void initialiseWeights();
@@ -44,6 +44,12 @@ int findIndexOfResampledParticle (float randNum);
 
   const int NUMBER_OF_PARTICLES = 100;
   const int NUMBER_OF_WALLS = 8;
+  const int INFINITY = 10000000000.0;
+	const float eps = 0.00000001;
+	const float SENSOR_DEVIATION = 1.0;
+	const float ALTERED_GAUSSIAN_CONSTANT = 0.01;
+	const float BOX_DIMENSION = 230.0;
+	const float SONAR_TO_CENTRE_CM = 6.3;
 
   float xArray[NUMBER_OF_PARTICLES];
   float yArray[NUMBER_OF_PARTICLES];
@@ -70,13 +76,84 @@ int findIndexOfResampledParticle (float randNum);
   int yOffset = 10;
 
   const float DISPLAY_SCALE = 1.0; //number of centimeters per pixel point on the screen
+  
+   float max(float a, float b ){
+   	  return (a>b)?a:b;
+   }
 
+   float min(float a, float b){
+   	  return (a>b)?b:a;
+   }
 
   int round(float f)
   {
   	  return (f>0)?(int)(f+0.5):(int)(f - 0.5);
   }
 
+  bool floatEqual(float a, float b) {
+	  return abs(a-b) < eps;
+	}
+	 
+	float alteredGaussian(float x) {
+	  return exp(-(x*x)/(2*(SENSOR_DEVIATION*SENSOR_DEVIATION))) + ALTERED_GAUSSIAN_CONSTANT;
+	}
+  // Takes the position estimate of a particle (x, y, theta) and the sonar measurement z
+	// and returns a likelihood value.
+	float calculate_likelihood(float x, float y, float theta, float z) {
+	  // check which wall the particle would hit
+	  float minDistance = INFINITY; // distance between the particle and the wall,
+	  float wall = -1;
+	  for(int i=0; i<NUMBER_OF_WALLS; ++i) {
+	    float Ax = wallAxArray[i]*100*rotationsForCm;
+	    float Ay = wallAyArray[i]*100*rotationsForCm;
+	    float Bx = wallBxArray[i]*100*rotationsForCm;
+	    float By = wallByArray[i]*100*rotationsForCm;
+	 
+	    float dis = getDistanceToWall(x,y,theta,Ax,Ay,Bx,By)
+	    if( dis < minDistance){
+	      minDistance = dis;
+	      wall = i;
+	    }
+	    
+	  }
+	  if (floatEqual(minDistance,INFINITY)) {
+	    return 1.; // FIXME: find better value
+	  } else {
+	    return alteredGaussian(minDistance - z);
+	  }
+	}
+	 
+	bool pointInInterval(float p, float x, float y) {
+	  return p +eps > min(x,y) && p+eps < max(x,y);
+	}
+	 
+	// Checks if direction of a particle in point (a, b) and angle 'theta' intersects with a wall
+	// given by points l2_x1 and l2_y2. If lines don't intersect, returns -1, otherwise the expected distance
+	// from the particle to the wall.
+	float getDistanceToWall(float a, float b, float theta, float x1, float y1, float x2, float y2) {
+	  // equation of direction line
+	  float dA = sin(theta), dB = -cos(theta), dC= b*cos(theta)-a*sin(theta);
+	  // equation of wall line
+	  float wA = (y2-y1), wB = (x1-x2), wC = (y1-y2)*x1+y1*(x2-x1);
+	  float determinant = wA*dB-wB*dA;
+	  if (floatEqual(determinant, 0.0)) {
+	    return INFINITY;
+	  }
+	  // calculating intercetion point
+	  float Ix = (dC*wB-wC*dB)/determinant;
+	  float Iy = (wC *dA - dC*wA)/determinant;
+	  // check if right orientation of direction
+	  if ( (Ix-a * cos(theta)) < eps) return INFINITY;
+	  // check if on the wall segment
+	  if (!(pointInInterval(Ix, x1, x2) && pointInInterval(Iy, y1,y2))) {
+	    return INFINITY;
+	  }
+	  // FIXME: consider removing sqrt
+	  return sqrt((Ix-a)*(Ix-a) + (Iy-b)*(Iy-b));
+	 
+	  // FIXME: test direction and segment tests
+	  // FIXME: test angles > pi/2
+	}
 
    task main() {
    	     pidSetup();
@@ -250,14 +327,7 @@ int findIndexOfResampledParticle (float randNum);
    	    }
    }
 
-   float max(float a, float b ){
-   	  return (a>b)?a:b;
-   }
 
-   float min(float a, float b){
-   	  return (a>b)?b:a;
-   }
-   
    void navigateToWaypoint (float XDest, float YDest)
    {
    	  float XStart = 0;
@@ -270,7 +340,7 @@ int findIndexOfResampledParticle (float randNum);
   	    YStart += (yArray[i]*weightArray[i]);
   	    RStart += (rotationArray[i]*weightArray[i]);
       }
-			
+
       //Assign estimated coordinates to our coordinates
       x = round( XStart );
       y = round( YStart );
@@ -288,7 +358,7 @@ int findIndexOfResampledParticle (float randNum);
    	 	float m = sqrt( XDiff * XDiff + YDiff * YDiff );
 
    	 	float is = m;
-   	 	
+
    	 	//move loop - moves 20cm until the distance from the ned-point is less than that
 	 	 	while(is > 20){ //accuracy fix ;)
 	 	 	  //compute our estimated position
@@ -296,30 +366,30 @@ int findIndexOfResampledParticle (float randNum);
 	 	 	  XStart = 0;
 	 	 	  YStart = 0;
 	 	 	  RStart = 0;
-	 	 	  
+
 	      for( int i = 0; i < NUMBER_OF_PARTICLES; i++){
 	  	    XStart += (xArray[i]*weightArray[i]);
 	  	    YStart += (yArray[i]*weightArray[i]);
 	  	    RStart += (rotationArray[i]*weightArray[i]);
 	      }
-				
+
 	      //Assign estimated coordinates to our coordinates
 	      x = round( XStart );
 	      y = round( YStart );
 	      rotation = RStart;
-      
+
 	 	 	  XDiff = RXDest-XStart;
         YDiff = RYDest-YStart;
-	 	 	  
+
         //Rotation we need to perform
 	      float angleOfRotation = atan2Degrees( XDiff, YDiff ) - RStart;
-	
+
 	  	  //map rotation to the right quarter
 	  	 	while( angleOfRotation > 180 ) angleOfRotation -= 360;
 	  	 	while( angleOfRotation < -180 ) angleOfRotation += 360;
-        
+
         m = sqrt( XDiff * XDiff + YDiff * YDiff );
-	 	 	  
+
  		    //rotate and move the robot
  		    rotate( angleOfRotation );
  		    moveRotations( round( min((20 * rotationsForCm), m) ) );
@@ -349,69 +419,6 @@ int findIndexOfResampledParticle (float randNum);
    	  return angle;
    }
 
-   // Takes the position estimate of a particle (x, y, theta) and the sonar measurement z
-   // and returns a likelihood value.
-   float calculate_likelihood(float x, float y, float theta, float z) {
-   	  // check which wall the particle would hit
-   	  float minDistance = 30000.0; // distance between the particle and the wall,
-   	  int wall = -1;
-      for(int i=0; i<NUMBER_OF_WALLS; ++i) {
-  	    float Ax = wallAxArray[i]*100*rotationsForCm;
-        float Ay = wallAyArray[i]*100*rotationsForCm;
-        float Bx = wallBxArray[i]*100*rotationsForCm;
-        float By = wallByArray[i]*100*rotationsForCm;
-
-        float m = checkIfLinesIntersect(x,y,theta,Ax,Ay,Bx,By);
-        // if a particle would hit the wall, find the wall that would be hit first
-        if(m>=0.0) {
-  	      if(m < minDistance) {
-  	        minDistance = m;
-  	        wall = i;
-  	      }
-        }
-      }
-
-      // calculate likelihood value given the distance of particle from the wall and sonar measurement
-      //float like = sampleGaussianSpecific( 0, 1, z-minDistance ) + 0.5;
-      const float K = 0.05; //no particular reason why 1, TODO
-      float sd2 = 1; //variance depending on sonar uncertainty TODO
-      float like = exp(-1*(z-minDistance)*(z-minDistance)/(2*sd2)) + K;
-      return like;
-   }
-
-   // Checks if direction of a particle in point (l1_x1, l1_y) and angle 'theta' intersects with a wall
-   // given by points l2_x1 and l2_y2. If lines don't intersect, returns -1, otherwise the expected distance
-   // from the particle to the wall.
-   float checkIfLinesIntersect(float p0_x, float p0_y, float theta, float p2_x, float p2_y, float p3_x, float p3_y)
-   {
-   	  float length = 30000.0; // arbitrary distance, long enough to intersect with any wall
-   	  float p1_x = (float) (p0_x + length * sin(theta)); // arbitrary end of line expressing particle direction
-   	  float p1_y = (float) (p0_y + length * cos(theta));
-
-      float s1_x, s1_y, s2_x, s2_y;
-      s1_x = p1_x - p0_x;     
-      s1_y = p1_y - p0_y;
-     
-      s2_x = p3_x - p2_x;     
-      s2_y = p3_y - p2_y;
-
-	    float s, t;
-      s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
-      t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
-
-      if (s >= 0 && s <= 1 && t >= 0 && t <= 1){
-        float i_x = p0_x + (t * s1_x);
-        float i_y = p0_y + (t * s1_y);
-        float d = sqrt(
-	          abs(p0_x-i_x)*abs(p0_x-i_x) +
-            abs(p0_y-i_y)*abs(p0_y-i_y)
-                      );
-	      return d;
-      }
-
-      return -1.0; // No collision
-   }
-   
    // Sets the weights to be equal (1/NUMBER_OF_PARTICLES) each in the beginning.
    void initialiseWeights() {
    	  for (int i=0; i<NUMBER_OF_PARTICLES; ++i) {
