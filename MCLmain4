@@ -1,0 +1,354 @@
+#pragma config(Sensor, S2, sonarSensor, sensorSONAR)
+
+#include "likelihood.c"
+#include "motors2.c"
+
+
+float atan3(float x, float y);
+bool move();
+void calculatePosition();
+void calculateAngle();
+
+void moveStraight(float cm);
+void rotateLeft(float ang);
+void rotateRight(float ang);
+
+void logicMove(float cm);
+void logicRotate(float ang);
+
+void sense();
+void normalize();
+void resample();
+
+void mainLoop();
+
+void initialiseArrays();
+
+
+
+
+
+// FIXME: if out walls
+
+
+const int NUMBER_OF_PARTICLES = 100;
+
+const float BOX_DIMENSION = 230.0;
+const float HOW_CLOSE_SHOULD_WE_GET_CM = 2.0;
+const float HOW_CLOSE_SHOULD_ANGLE_BE_DEG = 10.0;
+const float ROTATION_STEPS_DEG = 45.0;
+const float STRAIGHT_STEPS_CM = 20.0;
+const float startPosX = 84.0;
+const float startPosY = 30.0;
+const float SONAR_CENTER_DISTANCE = 6.3;
+const float startPosTheta = 0.0;
+const float NOISE_PERCENT = 0.05;
+const bool INCLUDE_NOISE_IN_MOVEMENT = true;
+
+const int TARGET_SIZE = 9;
+float targetX[TARGET_SIZE] = { 84.0, 180.0, 180.0, 126.0, 126.0,126.0, 30.0,84.0,84.0 };
+float targetY[TARGET_SIZE] = { 30.0, 30.0, 54.0, 54.0, 168.0, 126.0, 54.0, 54.0, 30.0 };
+
+
+
+
+
+
+
+
+const tSensors sonarSensor = (tSensors) S2;
+
+
+
+
+
+float xArray[NUMBER_OF_PARTICLES];
+float yArray[NUMBER_OF_PARTICLES];
+float thetaArray[NUMBER_OF_PARTICLES];
+float weightArray[NUMBER_OF_PARTICLES];
+
+
+float tempXArray[NUMBER_OF_PARTICLES];
+float tempYArray[NUMBER_OF_PARTICLES];
+float tempThetaArray[NUMBER_OF_PARTICLES];
+
+
+task main() {
+  mainLoop();
+}
+bool skipStep = false;
+
+void mainLoop() {
+  pidSetup();
+  initialiseArrays();
+
+  bool stopNow = false;
+  while(!stopNow) {
+    bool stopNow = move();
+    if(skipStep) {
+      skipStep = false;
+      continue;
+    }
+    sense();
+  }
+}
+
+
+// HIGH-LEVEL LOGIC
+
+int nextTarget = 0;
+
+
+float curX, curY, curTheta;
+float tX, tY;
+
+
+float atan3(float x, float y) {
+ if (abs(x) < 0.0001 || abs(y)<0.0001) {
+    if(abs(x) < 0.0001) {
+      if (y >= 0.0) return PI/2.0;
+      else return 3.0*PI/2.0;
+    } else if(abs(y) < 0.0001) {
+      if(x >=0.0) return 0.0;
+      else return PI;
+    }
+    return 0.0;
+ } else {
+   if(x> 0.0 && y > 0.0) return atan(y/x);
+	 else if(x<0.0 && y > 0.0) return PI/2.0 + atan(-x/y);
+	 else if(x<0.0 && y < 0.0) return PI + atan(y/x);
+	 else if(x>0.0 && y< 0.0) return 3.0*PI/2.0 + atan(-x/y);
+	 else {
+	  return 0.0;
+	 }
+  }
+}
+
+
+
+bool move() {
+  tX = targetX[nextTarget];
+  tY = targetY[nextTarget];
+  calculatePosition();
+  calculateAngle();
+
+  float distance = sqrt( (curX-tX)*(curX-tX) + (curY-tY)*(curY-tY));
+
+  if (distance <=HOW_CLOSE_SHOULD_WE_GET_CM) {
+    ++nextTarget;
+    if (nextTarget == TARGET_SIZE) {
+      return true;
+    } else {
+      skipStep = true;
+      return false;
+
+    }
+  } else {
+    float targetAngle = atan3(tX-curX, tY-curY);
+
+    //nxtDisplayCenteredTextLine(1, "next t:%.0f", (float)(nextTarget+1));
+    //nxtDisplayCenteredTextLine(2, "%f", distance);
+
+    float leftAngleDiff = 0.0, rightAngleDiff = 0.0;
+    if (targetAngle > curTheta) {
+      leftAngleDiff = targetAngle - curTheta;
+      rightAngleDiff = curTheta + 2.0*PI-targetAngle;
+    } else {
+      leftAngleDiff = targetAngle + 2.0*PI - curTheta;
+      rightAngleDiff = curTheta - targetAngle;
+    }
+
+    if (min(leftAngleDiff, rightAngleDiff) < HOW_CLOSE_SHOULD_ANGLE_BE_DEG *PI/180.0) {
+      moveStraight(min(distance, STRAIGHT_STEPS_CM));
+    } else {
+      if (leftAngleDiff < rightAngleDiff) {
+        rotateLeft(min(ROTATION_STEPS_DEG*PI/180.0, leftAngleDiff));
+      } else {
+        rotateRight(min(ROTATION_STEPS_DEG*PI/180.0, rightAngleDiff));
+      }
+    }
+    return false;
+  }
+}
+
+
+
+
+
+void calculateAngle() {
+ float normal = 0.0, rotated = 0.0, rhelp;
+ for (int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+   normal += thetaArray[i];
+   rhelp = thetaArray[i] + PI;
+   if (rhelp >= 2.0*PI) rhelp-= 2.0*PI;
+   rotated += rhelp;
+ }
+ normal/=NUMBER_OF_PARTICLES;
+ rotated/=NUMBER_OF_PARTICLES;
+
+ float normalD = 0.0, rotatedD = 0.0;
+ for (int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+   normalD += (thetaArray[i] - normal)*(thetaArray[i] - normal);
+   rhelp = thetaArray[i] + PI;
+   if (rhelp >= 2.0*PI) rhelp-= 2.0*PI;
+   rotatedD += (rhelp - rotated)*(rhelp - rotated);
+ }
+
+ if(normalD>rotatedD) {
+   float ret = rotated - PI;
+   if (ret < 0.0)
+    ret += 2.0*PI;
+   curTheta = ret;
+ } else {
+   curTheta = normal;
+ }
+}
+
+
+void calculatePosition() {
+  curX = 0; curY = 0;
+  for (int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+    curX += xArray[i];
+    curY += yArray[i];
+  }
+  curX /= NUMBER_OF_PARTICLES;
+  curY /= NUMBER_OF_PARTICLES;
+}
+
+
+
+
+
+
+
+
+
+
+
+// COMANDS + UPDATE
+
+void moveStraight(float cm) {
+  nxtDisplayCenteredTextLine(3, "move %.2f", (float)cm);
+  moveMotor(cm);
+  logicMove(cm);
+}
+
+void rotateLeft(float ang) {
+  nxtDisplayCenteredTextLine(3, "rot le %.2f", 180.0*ang/PI);
+  rotate(ang);
+  logicRotate(ang);
+}
+void rotateRight(float ang) {
+    nxtDisplayCenteredTextLine(3, "rot ri %.2f", 180.0*ang/PI);
+  rotate(-ang);
+  logicRotate(-ang);
+}
+
+
+// LOGIC MOTION
+// FIXME: think about adding noise!!!!
+void logicMove(float cm) {
+  float noise = 0.0;
+  if (INCLUDE_NOISE_IN_MOVEMENT)
+    noise = sampleGaussian(0, cm*NOISE_PERCENT);
+  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+    xArray[i] += (cm+noise)*cos(thetaArray[i]);
+    yArray[i] += (cm+noise)*sin(thetaArray[i]);
+  }
+}
+
+void logicRotate(float ang) {
+  float noise = 0.0;
+  if (INCLUDE_NOISE_IN_MOVEMENT)
+    noise = sampleGaussian(0, ang*NOISE_PERCENT);
+  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+    thetaArray[i] += (ang+noise);
+    if(thetaArray[i] < 0.0) thetaArray[i] += 2.0*PI;
+    else if(thetaArray[i] > 2.0*PI) thetaArray[i] -= 2.0*PI;
+  }
+}
+
+
+
+
+
+// SENSING
+
+void sense() {
+  float distance = SensorValue(sonarSensor) + SONAR_CENTER_DISTANCE;
+  if (distance < 20.0) {
+    if (distance < 10.0)
+      moveStraight(-10.0);
+    return;
+    moveStraight(-STRAIGHT_STEPS_CM);
+    return;
+  } else if (distance > 130.0) {
+    return;
+  }
+  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+
+    float likelihood = calculate_likelihood(xArray[i], yArray[i], thetaArray[i], distance);
+    // FIXME: should I multiply?
+    weightArray[i] = likelihood*weightArray[i];
+  }
+  normalize();
+
+  resample();
+}
+
+// Scales weights of all particles so that they all add up to 1.
+void normalize() {
+  // calculate sum of all unnormalised weights:
+  float W = 0.0;
+  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+    W+=weightArray[i];
+  }
+  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+    weightArray[i] = weightArray[i]/W;
+  }
+}
+
+void resample() {
+  float remainingMove = 0.0;
+  int curParticle = 0;
+  float maxProb = 0.0;
+
+
+
+  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+    maxProb = max(maxProb, weightArray[i]);
+  }
+
+  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+    remainingMove += sampleUniform(2.0*maxProb);
+
+    while(remainingMove > weightArray[curParticle]) {
+      remainingMove-=weightArray[curParticle];
+      curParticle++;
+      if(curParticle>=NUMBER_OF_PARTICLES) curParticle-=NUMBER_OF_PARTICLES;
+    }
+    tempXArray[i] = xArray[curParticle];
+    tempYArray[i] = yArray[curParticle];
+    tempThetaArray[i] = thetaArray[curParticle];
+  }
+  // update the arrays with old particles with the ones that were resampled.
+  for(int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+    xArray[i] = tempXArray[i];
+    yArray[i] = tempYArray[i];
+    thetaArray[i] = tempThetaArray[i];
+  }
+}
+
+// RESAMPLING AND NORMALIZATION
+
+// Sets the weights to be equal (1/NUMBER_OF_PARTICLES) each in the beginning.
+void initialiseArrays() {
+  for (int i=0; i<NUMBER_OF_PARTICLES; ++i) {
+    xArray[i] = sampleGaussian(startPosX, 1.0);
+    yArray[i] = sampleGaussian(startPosY, 1.0);
+    thetaArray[i] = sampleGaussian(startPosTheta, 0.1);
+    if (thetaArray[i] < 0.0) thetaArray[i] += 2.0*PI;
+    if (thetaArray[i] >= 2.0*PI) thetaArray[i]-= 2.0* PI;
+    weightArray[i] = 1.0/NUMBER_OF_PARTICLES;
+  }
+}
