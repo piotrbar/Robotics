@@ -1,0 +1,156 @@
+float getDistanceToWall(float a, float b, float theta, float x1, float y1, float x2, float y2);
+float calculate_likelihood(float x, float y, float theta, float z);
+bool pointInInterval(float p, float x, float y);
+
+void drawWalls();
+float min(float a, float b);
+float max(float a, float b);
+bool floatEqual(float a, float b);
+float sampleUniform(float max_val);
+float alteredGaussian(float x);
+float sampleGaussian(float mean, float sigma);
+
+
+// Definitions of walls
+// a: O to A
+// b: A to B
+// c: C to D
+// d: D to E
+// e: E to F
+// f: F to G
+// g: G to H
+// h: H to O
+const int NUMBER_OF_WALLS = 8;
+//                                      a    b    c    d    e    f    g    h
+float wallAxArray[NUMBER_OF_WALLS] = {  0,   0,  84,  84, 168, 168, 210, 210};
+float wallAyArray[NUMBER_OF_WALLS] = {  0, 168, 126, 210, 210,  84,  84,   0};
+float wallBxArray[NUMBER_OF_WALLS] = {  0,  84,  84, 168, 168, 210, 210,   0};
+float wallByArray[NUMBER_OF_WALLS] = {168, 168, 210, 210,  84,  84,   0,   0};
+
+const int INFINITY = 100000.0;
+const float eps = 0.000001;
+
+
+const float SENSOR_DEVIATION = 4.0;
+const float ALTERED_GAUSSIAN_CONSTANT = 0.1;
+
+
+float min(float a, float b) {
+  return a<b ? a : b;
+}
+
+float max(float a, float b) {
+  return a>b ? a : b;
+}
+
+bool floatEqual(float a, float b) {
+  return abs(a-b) < eps;
+}
+
+
+void drawWalls(){
+  for(int i = 0;i < NUMBER_OF_WALLS; ++i){
+    nxtDrawLine(wallAxArray[i]/DISPLAY_SCALE, wallAyArray[i]/DISPLAY_SCALE, wallBxArray[i]/DISPLAY_SCALE, wallByArray[i]/DISPLAY_SCALE);
+  }
+}
+
+float alteredGaussian(float x) {
+  return exp(
+            -(x*x)
+            /(2.0*
+                (SENSOR_DEVIATION*SENSOR_DEVIATION)
+              )
+            ) + ALTERED_GAUSSIAN_CONSTANT;
+
+}
+
+float sampleUniform(float max_val)
+{
+  	// Converts random int to correct float range
+		return max_val * (float)(random[30000]) / 30000.0;
+}
+
+
+
+
+
+
+float sampleGaussian(float mean, float sigma)
+{
+  float u     = sampleUniform(1.0);
+  float theta = sampleUniform(2.0 * PI);
+
+  // Fix to avoid infinity problem
+  if (u == 0) {
+    u = 0.0001;
+  }
+
+  float r = sqrt(-2.0*log(u));
+
+  float x = r * cos(theta);
+
+  return mean + sigma * x;
+}
+
+
+
+
+
+
+// LIKELIHOOD
+
+// Takes the position estimate of a particle (x, y, theta) and the sonar measurement z
+// and returns a likelihood value.
+float calculate_likelihood(float x, float y, float theta, float z) {
+  // check which wall the particle would hit
+  float minDistance = INFINITY; // distance between the particle and the wall,
+  for(int i=0; i<NUMBER_OF_WALLS; ++i) {
+    float Ax = wallAxArray[i];
+    float Ay = wallAyArray[i];
+    float Bx = wallBxArray[i];
+    float By = wallByArray[i];
+
+    minDistance = min(getDistanceToWall(x,y,theta,Ax,Ay,Bx,By), minDistance);
+  }
+  // nxtDisplayCenteredTextLine(5,  "x: %f", alteredGaussian(minDistance - z));
+  if (floatEqual(minDistance,INFINITY)) {
+    return 1.; // FIXME: find better value
+  } else {
+    return alteredGaussian(minDistance - z);
+  }
+
+}
+
+bool pointInInterval(float p, float x, float y) {
+  float newEps = eps;
+  if(x==y) newEps += 0.01;
+  return p >= min(x,y)-newEps && p <= max(x,y) + newEps;
+}
+
+// Checks if direction of a particle in point (a, b) and angle 'theta' intersects with a wall
+// given by points l2_x1 and l2_y2. If lines don't intersect, returns -1, otherwise the expected distance
+// from the particle to the wall.
+float getDistanceToWall(float a, float b, float theta, float x1, float y1, float x2, float y2) {
+  // equation of direction line
+  float dA = sin(theta), dB = -cos(theta), dC= b*cos(theta)-a*sin(theta);
+  // equation of wall line
+  float wA = (y2-y1), wB = (x1-x2), wC = (y1-y2)*x1+y1*(x2-x1);
+  float determinant = wA*dB-wB*dA;
+  if (floatEqual(determinant, 0.0)) {
+    return INFINITY;
+  }
+  // calculating intercetion point
+  float Ix = (dC*wB-wC*dB)/determinant;
+  float Iy = (wC *dA - dC*wA)/determinant;
+  // check if right orientation of direction
+  if ( (Ix-a * cos(theta)) < eps) return INFINITY;
+  // check if on the wall segment
+  if (!(pointInInterval(Ix, x1, x2) && pointInInterval(Iy, y1,y2))) {
+    return INFINITY;
+  }
+  // FIXME: consider removing sqrt
+  return sqrt((Ix-a)*(Ix-a) + (Iy-b)*(Iy-b));
+
+  // FIXME: test direction and segment tests
+  // FIXME: test angles > pi/2
+}
