@@ -1,0 +1,13 @@
+
+
+const int NUMBER_OF_PARTICLES = 100;
+
+const float BOX_DIMENSION = 230.0;
+const float HOW_CLOSE_SHOULD_WE_GET_CM = 5.0;
+const float HOW_CLOSE_SHOULD_ANGLE_BE_DEG = 10.0;
+const float ROTATION_STEPS_DEG = 15.0;
+const float STRAIGHT_STEPS_CM = 15.0;
+
+const int TARGET_SIZE = 9;
+float targetX[TARGET_SIZE] = { 84.0, 180.0, 180.0, 126.0, 126.0,126.0, 30.0,84.0,84.0 };
+float targetY[TARGET_SIZE] = { 30.0, 30.0, 54.0, 54.0, 168.0, 126.0, 54.0, 54.0, 30.0 };
