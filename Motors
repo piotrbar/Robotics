@@ -1,0 +1,97 @@
+// MOTORS
+void pidSetup();
+void stop();
+void rotate(float rad);
+void moveMotor(int ncm);
+void moveRotations( int rotations );
+int round(float f);
+
+
+
+
+/*const float rotationsFordeg90 = 4.07; //number of rotations required to turn for a degree
+const float rotationsFordeg45 = 4.614;
+const float rotationsFordeg30 = 4.96;
+const float rotationsFordeg = 3.735;*/
+const int power = 5;
+
+int round(float f)
+{
+  return (f>0)?(int)(f+0.5):(int)(f - 0.5);
+}
+
+
+void pidSetup() {
+    nMotorPIDSpeedCtrl[motorA] = mtrSpeedReg;
+    nMotorPIDSpeedCtrl[motorC] = mtrSpeedReg;
+}
+
+void stop() {
+    motor[motorA] = 0;
+    motor[motorC] = 0;
+    nMotorEncoder[motorA] = 0;
+    nMotorEncoder[motorC] = 0;
+}
+
+
+void rotate(float rad) {
+    float rotationsFordeg = 0.0;
+    float deg = rad*-180.0/PI;
+    if(deg > -1 && deg < 1) return;
+/*
+    if (abs(deg) > 70.0) {
+      rotationsFordeg = 4.405 - 0.00372222*abs(deg);
+    } else {
+      rotationsFordeg = 5.652 - 0.0230667*abs(deg);
+    }
+    */
+    // optimized for carped and 13.1 cm between inside edge of wheels
+    rotationsFordeg = -0.688701*log(0.0000266221*abs(deg));
+    if( abs(deg) < 18.0) rotationsFordeg = 6.5;
+
+    //rotationsFordeg = 6.50;
+    int rotations = abs( deg ) * rotationsFordeg;
+
+    nMotorEncoder[motorA] = 0;
+    nMotorEncoder[motorC] = 0;
+
+    nMotorEncoderTarget[motorA] = rotations;
+    nMotorEncoderTarget[motorC] = rotations;
+
+    int sign = (deg < 0) ? -1 : 1;
+
+    motor[motorA] = sign * -power;
+    motor[motorC] = sign * power;
+
+    while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
+      //EndTimeSlice();
+    }
+
+    stop();
+}
+
+
+void moveMotor(int ncm) {
+    // cm2rotations
+    float rotationsForCm = 34.5-0.25*abs(ncm);
+    int rotations = round( ncm * rotationsForCm );
+    moveRotations( rotations );
+}
+
+void moveRotations( int rotations ) {
+  nMotorEncoder[motorA] = 0;
+  nMotorEncoder[motorC] = 0;
+
+  int sign = (rotations < 0) ? -1 : 1;
+
+  //set the number of rquired rotations and power of motors
+  nMotorEncoderTarget[motorA] = rotations;
+  motor[motorA] = sign * power;
+  motor[motorC] = sign * power;
+
+  while (nMotorRunState[motorA] != runStateIdle && nMotorRunState[motorA] != runStateHoldPosition) {
+    //EndTimeSlice()
+  }
+
+  stop();
+}
